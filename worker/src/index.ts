@@ -19,7 +19,12 @@ const judgeImage = process.env.JUDGE_IMAGE ?? 'oj-runner:latest';
 const dataDir = path.resolve(process.env.DATA_DIR ?? path.join(process.cwd(), '..', 'data'));
 
 function resolveDataPath(relativePath: string): string {
-  return path.join(dataDir, relativePath);
+  const resolved = path.resolve(dataDir, relativePath);
+  const relative = path.relative(dataDir, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Invalid data path.');
+  }
+  return resolved;
 }
 
 async function readTextFile(relativePath: string): Promise<string> {
@@ -30,7 +35,7 @@ const worker = new Worker(
   queueName,
   async (job) => {
     const submissionId = Number(job.data?.submissionId);
-    if (!submissionId) {
+    if (!Number.isFinite(submissionId) || submissionId <= 0) {
       return;
     }
 
@@ -101,7 +106,15 @@ worker.on('failed', (job, err) => {
 });
 
 process.on('SIGINT', async () => {
+  await shutdown();
+});
+
+process.on('SIGTERM', async () => {
+  await shutdown();
+});
+
+async function shutdown() {
   await worker.close();
   await prisma.$disconnect();
   process.exit(0);
-});
+}

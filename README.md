@@ -63,6 +63,39 @@
 -   Docker Desktop (WSL2 권장)
 -   Docker Compose
 
+## Docker로 서버 시작 (API/Worker)
+
+1. `.env` 준비
+   `.env.example`을 복사해 `.env`를 만든 뒤 `CORS_ORIGIN`을 설정하세요. 프로덕션에서는 `JWT_SECRET`을 강력한 값으로 설정하고, 필요 시 `ADMIN_PASSWORD`도 설정하세요.
+
+2. 채점 이미지 빌드
+
+```bash
+docker build -t oj-runner:latest ./judge
+docker compose up -d
+npm install
+npm run prisma:migrate
+npm run prisma:seed
+npm run dev
+```
+
+3. DB/Redis/Server/Worker 실행
+
+```bash
+docker compose up -d postgres redis server worker
+```
+
+4. 최초 1회 마이그레이션/시드 (호스트에서 실행)
+
+```bash
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:seed
+```
+
+-   서버 API: http://localhost:3000
+
 ## 빠른 시작
 
 ### A) Docker로 server/worker + 로컬 client
@@ -86,7 +119,7 @@ npm install
 ```
 
 4. Prisma 마이그레이션/시드
-   루트의 `.env.example`을 참고해 `.env`를 준비한 뒤 실행하세요.
+   루트의 `.env.example`을 참고해 `.env`를 준비한 뒤 실행하세요. 프로덕션에서는 `JWT_SECRET`, `ADMIN_PASSWORD`를 반드시 설정하세요.
 
 ```bash
 npm run prisma:generate
@@ -141,6 +174,8 @@ npm run dev
 
 -   username: `admin`
 -   password: `admin1234`
+-   프로덕션 환경에서는 `ADMIN_PASSWORD`로 시드 기본 비밀번호를 변경하세요.
+-   프로덕션 환경에서는 `JWT_SECRET`을 강력한 값으로 설정하세요.
 
 권한:
 

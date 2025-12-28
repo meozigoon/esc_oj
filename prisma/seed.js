@@ -5,6 +5,7 @@ const path = require('path');
 
 const prisma = new PrismaClient();
 const dataDir = path.resolve(process.env.DATA_DIR || path.join(process.cwd(), 'data'));
+const defaultAdminPassword = 'admin1234';
 
 function toPosixPath(...segments) {
   return path.posix.join(...segments);
@@ -21,7 +22,11 @@ async function writeTextFile(relativePath, content) {
 }
 
 async function main() {
-  const adminPassword = await bcrypt.hash('admin1234', 10);
+  const rawAdminPassword = process.env.ADMIN_PASSWORD || defaultAdminPassword;
+  if (process.env.NODE_ENV === 'production' && rawAdminPassword === defaultAdminPassword) {
+    throw new Error('ADMIN_PASSWORD must be set in production.');
+  }
+  const adminPassword = await bcrypt.hash(rawAdminPassword, 10);
   const admin = await prisma.user.findUnique({ where: { username: 'admin' } });
   if (!admin) {
     await prisma.user.create({

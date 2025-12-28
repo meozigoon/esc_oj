@@ -9,7 +9,6 @@ import ContestListPage from './pages/ContestListPage';
 import ContestDetailPage from './pages/ContestDetailPage';
 import ProblemDetailPage from './pages/ProblemDetailPage';
 import ProblemSubmissionsPage from './pages/ProblemSubmissionsPage';
-import SubmitPage from './pages/SubmitPage';
 import SubmissionListPage from './pages/SubmissionListPage';
 import SubmissionDetailPage from './pages/SubmissionDetailPage';
 import AdminHomePage from './pages/admin/AdminHomePage';
@@ -59,14 +58,6 @@ export default function App() {
             element={
               <RequireAuth>
                 <ProblemSubmissionsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="submit/:problemId"
-            element={
-              <RequireAuth>
-                <SubmitPage />
               </RequireAuth>
             }
           />

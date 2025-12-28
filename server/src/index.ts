@@ -27,25 +27,35 @@ const redis = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
 const queueName = process.env.QUEUE_NAME ?? 'submission-queue';
 const queue = new Queue(queueName, { connection: redis });
 const dataDir = path.resolve(process.env.DATA_DIR ?? path.join(process.cwd(), '..', 'data'));
+const isProd = process.env.NODE_ENV === 'production';
 
 const app = express();
-const jwtSecret = process.env.JWT_SECRET ?? 'dev-secret';
+const jwtSecret = resolveJwtSecret();
 const cookieSecure = process.env.COOKIE_SECURE === 'true';
 const corsOriginRaw = process.env.CORS_ORIGIN ?? 'http://localhost:5173';
-const corsOrigins = corsOriginRaw
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-const corsOrigin =
-  corsOrigins.length > 1
-    ? corsOrigins
-    : corsOrigins.length === 1
-      ? corsOrigins[0]
-      : 'http://localhost:5173';
+const corsOrigins = new Set(
+  corsOriginRaw
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
+if (corsOrigins.size === 0) {
+  corsOrigins.add('http://localhost:5173');
+}
+if (corsOrigins.has('*')) {
+  throw new Error('CORS_ORIGIN cannot include "*" when credentials are enabled.');
+}
 
+app.disable('x-powered-by');
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: (origin, callback) => {
+      if (!origin || corsOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true
   })
 );
@@ -89,6 +99,20 @@ const allowedLanguages = new Set<Language>([
 ]);
 const defaultLanguage: Language = 'CPP17';
 
+function resolveJwtSecret(): string {
+  const secret = process.env.JWT_SECRET?.trim();
+  if (!secret) {
+    if (isProd) {
+      throw new Error('JWT_SECRET must be set to a strong value in production.');
+    }
+    return 'dev-secret';
+  }
+  if (isProd && (secret === 'dev-secret' || secret === 'change-me')) {
+    throw new Error('JWT_SECRET must be set to a strong value in production.');
+  }
+  return secret;
+}
+
 function toPosixPath(...segments: string[]): string {
   return path.posix.join(...segments);
 }
@@ -109,9 +133,18 @@ async function ensureDir(dirPath: string): Promise<void> {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
+function resolveDataPath(relativePath: string): string {
+  const resolved = path.resolve(dataDir, relativePath);
+  const relative = path.relative(dataDir, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Invalid data path.');
+  }
+  return resolved;
+}
+
 async function readTextFile(relativePath: string): Promise<string> {
-  const absolutePath = path.join(dataDir, relativePath);
   try {
+    const absolutePath = resolveDataPath(relativePath);
     return await fs.readFile(absolutePath, 'utf8');
   } catch {
     return '';
@@ -119,14 +152,14 @@ async function readTextFile(relativePath: string): Promise<string> {
 }
 
 async function writeTextFile(relativePath: string, content: string): Promise<void> {
-  const absolutePath = path.join(dataDir, relativePath);
+  const absolutePath = resolveDataPath(relativePath);
   await ensureDir(path.dirname(absolutePath));
   await fs.writeFile(absolutePath, content, 'utf8');
 }
 
 async function removeFile(relativePath: string): Promise<void> {
-  const absolutePath = path.join(dataDir, relativePath);
   try {
+    const absolutePath = resolveDataPath(relativePath);
     await fs.unlink(absolutePath);
   } catch {
     // ignore
@@ -134,8 +167,8 @@ async function removeFile(relativePath: string): Promise<void> {
 }
 
 async function removeDir(relativePath: string): Promise<void> {
-  const absolutePath = path.join(dataDir, relativePath);
   try {
+    const absolutePath = resolveDataPath(relativePath);
     await fs.rm(absolutePath, { recursive: true, force: true });
   } catch {
     // ignore
@@ -246,6 +279,14 @@ function parseNumber(value: unknown): number | null {
   return null;
 }
 
+function parsePositiveInt(value: unknown): number | null {
+  const parsed = parseNumber(value);
+  if (parsed === null || !Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
 function normalizeRole(role: Role) {
   if (role === 'ADMIN') {
     return 'admin';
@@ -351,7 +392,7 @@ app.get('/api/contests', requireAuth, async (_req, res) => {
 });
 
 app.get('/api/contests/:id', requireAuth, async (req, res) => {
-  const contestId = parseNumber(req.params.id);
+  const contestId = parsePositiveInt(req.params.id);
   if (!contestId) {
     res.status(400).json({ message: '잘못된 contestId입니다.' });
     return;
@@ -365,7 +406,7 @@ app.get('/api/contests/:id', requireAuth, async (req, res) => {
 });
 
 app.get('/api/contests/:id/problems', requireAuth, async (req, res) => {
-  const contestId = parseNumber(req.params.id);
+  const contestId = parsePositiveInt(req.params.id);
   if (!contestId) {
     res.status(400).json({ message: '잘못된 contestId입니다.' });
     return;
@@ -385,7 +426,7 @@ app.get('/api/contests/:id/problems', requireAuth, async (req, res) => {
 });
 
 app.get('/api/problems/:id', async (req, res) => {
-  const problemId = parseNumber(req.params.id);
+  const problemId = parsePositiveInt(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
     return;
@@ -415,8 +456,8 @@ app.get('/api/problems/:id', async (req, res) => {
 });
 
 app.post('/api/submissions', requireAuth, submitLimiter, async (req: AuthRequest, res) => {
-  const problemId = parseNumber(req.body?.problemId);
-  const contestIdInput = parseNumber(req.body?.contestId);
+  const problemId = parsePositiveInt(req.body?.problemId);
+  const contestIdInput = parsePositiveInt(req.body?.contestId);
   const languageInput = String(req.body?.language ?? '').trim();
   const code = String(req.body?.code ?? '');
 
@@ -491,10 +532,10 @@ app.post('/api/submissions', requireAuth, submitLimiter, async (req: AuthRequest
 
 app.get('/api/submissions', requireAuth, async (req: AuthRequest, res) => {
   const mine = String(req.query.mine ?? '') === '1';
-  const contestId = parseNumber(req.query.contestId);
-  const problemId = parseNumber(req.query.problemId);
+  const contestId = parsePositiveInt(req.query.contestId);
+  const problemId = parsePositiveInt(req.query.problemId);
   const status = req.query.status ? String(req.query.status) : null;
-  const userId = parseNumber(req.query.userId);
+  const userId = parsePositiveInt(req.query.userId);
 
   const isAdmin = req.user?.role === 'ADMIN';
 
@@ -543,7 +584,7 @@ app.get('/api/submissions', requireAuth, async (req: AuthRequest, res) => {
 });
 
 app.get('/api/submissions/:id', requireAuth, async (req: AuthRequest, res) => {
-  const submissionId = parseNumber(req.params.id);
+  const submissionId = parsePositiveInt(req.params.id);
   if (!submissionId) {
     res.status(400).json({ message: '잘못된 submissionId입니다.' });
     return;
@@ -583,7 +624,7 @@ app.get('/api/submissions/:id', requireAuth, async (req: AuthRequest, res) => {
 });
 
 app.post('/api/submissions/:id/resubmit', requireAuth, submitLimiter, async (req: AuthRequest, res) => {
-  const submissionId = parseNumber(req.params.id);
+  const submissionId = parsePositiveInt(req.params.id);
   if (!submissionId) {
     res.status(400).json({ message: '잘못된 submissionId입니다.' });
     return;
@@ -671,6 +712,10 @@ app.post('/api/admin/contests', requireAuth, requireAdminWrite, async (req, res)
     res.status(400).json({ message: '입력값을 확인해 주세요.' });
     return;
   }
+  if (startAt >= endAt) {
+    res.status(400).json({ message: '시작 시간이 종료 시간보다 빨라야 합니다.' });
+    return;
+  }
 
   const contest = await prisma.contest.create({
     data: { title, startAt, endAt }
@@ -680,7 +725,7 @@ app.post('/api/admin/contests', requireAuth, requireAdminWrite, async (req, res)
 });
 
 app.put('/api/admin/contests/:id', requireAuth, requireAdminWrite, async (req, res) => {
-  const contestId = parseNumber(req.params.id);
+  const contestId = parsePositiveInt(req.params.id);
   if (!contestId) {
     res.status(400).json({ message: '잘못된 contestId입니다.' });
     return;
@@ -694,6 +739,10 @@ app.put('/api/admin/contests/:id', requireAuth, requireAdminWrite, async (req, r
     res.status(400).json({ message: '입력값을 확인해 주세요.' });
     return;
   }
+  if (startAt >= endAt) {
+    res.status(400).json({ message: '시작 시간이 종료 시간보다 빨라야 합니다.' });
+    return;
+  }
 
   const contest = await prisma.contest.update({
     where: { id: contestId },
@@ -704,7 +753,7 @@ app.put('/api/admin/contests/:id', requireAuth, requireAdminWrite, async (req, r
 });
 
 app.delete('/api/admin/contests/:id', requireAuth, requireAdminWrite, async (req, res) => {
-  const contestId = parseNumber(req.params.id);
+  const contestId = parsePositiveInt(req.params.id);
   if (!contestId) {
     res.status(400).json({ message: '잘못된 contestId입니다.' });
     return;
@@ -756,7 +805,7 @@ app.post('/api/admin/users', requireAuth, requireAdminWrite, async (req, res) =>
 });
 
 app.put('/api/admin/users/:id/password', requireAuth, requireAdminWrite, async (req, res) => {
-  const userId = parseNumber(req.params.id);
+  const userId = parsePositiveInt(req.params.id);
   if (!userId) {
     res.status(400).json({ message: '잘못된 userId입니다.' });
     return;
@@ -801,7 +850,7 @@ app.get('/api/admin/problems', requireAuth, requireAdminRead, async (_req, res) 
 });
 
 app.get('/api/admin/problems/:id', requireAuth, requireAdminRead, async (req, res) => {
-  const problemId = parseNumber(req.params.id);
+  const problemId = parsePositiveInt(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
     return;
@@ -826,9 +875,9 @@ app.post('/api/admin/problems', requireAuth, requireAdminWrite, async (req, res)
   const statementMd = String(req.body?.statementMd ?? '');
   const sampleInput = String(req.body?.sampleInput ?? '');
   const sampleOutput = String(req.body?.sampleOutput ?? '');
-  const timeLimitMs = parseNumber(req.body?.timeLimitMs);
-  const memoryLimitMb = parseNumber(req.body?.memoryLimitMb);
-  const contestId = parseNumber(req.body?.contestId);
+  const timeLimitMs = parsePositiveInt(req.body?.timeLimitMs);
+  const memoryLimitMb = parsePositiveInt(req.body?.memoryLimitMb);
+  const contestId = parsePositiveInt(req.body?.contestId);
   const submissionType = parseSubmissionType(req.body?.submissionType);
   const textAnswer = String(req.body?.textAnswer ?? '');
   const generatorLanguage = parseLanguageInput(req.body?.generatorLanguage);
@@ -858,7 +907,7 @@ app.post('/api/admin/problems', requireAuth, requireAdminWrite, async (req, res)
     return;
   }
 
-  if (!title || !statementMd || !timeLimitMs || !memoryLimitMb) {
+  if (!title || !statementMd || timeLimitMs === null || memoryLimitMb === null) {
     res.status(400).json({ message: '입력값을 확인해 주세요.' });
     return;
   }
@@ -899,7 +948,7 @@ app.post('/api/admin/problems', requireAuth, requireAdminWrite, async (req, res)
 });
 
 app.put('/api/admin/problems/:id', requireAuth, requireAdminWrite, async (req, res) => {
-  const problemId = parseNumber(req.params.id);
+  const problemId = parsePositiveInt(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
     return;
@@ -909,9 +958,9 @@ app.put('/api/admin/problems/:id', requireAuth, requireAdminWrite, async (req, r
   const statementMd = String(req.body?.statementMd ?? '');
   const sampleInput = String(req.body?.sampleInput ?? '');
   const sampleOutput = String(req.body?.sampleOutput ?? '');
-  const timeLimitMs = parseNumber(req.body?.timeLimitMs);
-  const memoryLimitMb = parseNumber(req.body?.memoryLimitMb);
-  const contestId = parseNumber(req.body?.contestId);
+  const timeLimitMs = parsePositiveInt(req.body?.timeLimitMs);
+  const memoryLimitMb = parsePositiveInt(req.body?.memoryLimitMb);
+  const contestId = parsePositiveInt(req.body?.contestId);
   const submissionType = parseSubmissionType(req.body?.submissionType);
   const textAnswer = String(req.body?.textAnswer ?? '');
   const generatorLanguage = parseLanguageInput(req.body?.generatorLanguage);
@@ -941,7 +990,7 @@ app.put('/api/admin/problems/:id', requireAuth, requireAdminWrite, async (req, r
     return;
   }
 
-  if (!title || !statementMd || !timeLimitMs || !memoryLimitMb) {
+  if (!title || !statementMd || timeLimitMs === null || memoryLimitMb === null) {
     res.status(400).json({ message: '입력값을 확인해 주세요.' });
     return;
   }
@@ -984,7 +1033,7 @@ app.put('/api/admin/problems/:id', requireAuth, requireAdminWrite, async (req, r
 });
 
 app.delete('/api/admin/problems/:id', requireAuth, requireAdminWrite, async (req, res) => {
-  const problemId = parseNumber(req.params.id);
+  const problemId = parsePositiveInt(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
     return;
@@ -996,7 +1045,7 @@ app.delete('/api/admin/problems/:id', requireAuth, requireAdminWrite, async (req
 });
 
 app.get('/api/admin/problems/:id/testcases', requireAuth, requireAdminRead, async (req, res) => {
-  const problemId = parseNumber(req.params.id);
+  const problemId = parsePositiveInt(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
     return;
@@ -1018,7 +1067,7 @@ app.get('/api/admin/problems/:id/testcases', requireAuth, requireAdminRead, asyn
 });
 
 app.post('/api/admin/problems/:id/testcases', requireAuth, requireAdminWrite, async (req, res) => {
-  const problemId = parseNumber(req.params.id);
+  const problemId = parsePositiveInt(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
     return;
@@ -1032,7 +1081,7 @@ app.post('/api/admin/problems/:id/testcases', requireAuth, requireAdminWrite, as
 
   const input = String(req.body?.input ?? '');
   const output = String(req.body?.output ?? '');
-  const ordInput = parseNumber(req.body?.ord);
+  const ordInput = parsePositiveInt(req.body?.ord);
 
   let ord = ordInput ?? null;
   if (!ord) {
@@ -1070,8 +1119,8 @@ app.post('/api/admin/problems/:id/testcases', requireAuth, requireAdminWrite, as
 });
 
 app.put('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, requireAdminWrite, async (req, res) => {
-  const problemId = parseNumber(req.params.id);
-  const testcaseId = parseNumber(req.params.testcaseId);
+  const problemId = parsePositiveInt(req.params.id);
+  const testcaseId = parsePositiveInt(req.params.testcaseId);
   if (!problemId || !testcaseId) {
     res.status(400).json({ message: '잘못된 요청입니다.' });
     return;
@@ -1079,7 +1128,7 @@ app.put('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, requireAdm
 
   const input = String(req.body?.input ?? '');
   const output = String(req.body?.output ?? '');
-  const ord = parseNumber(req.body?.ord);
+  const ord = parsePositiveInt(req.body?.ord);
 
   if (!ord) {
     res.status(400).json({ message: '입력값을 확인해 주세요.' });
@@ -1124,7 +1173,7 @@ app.put('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, requireAdm
 });
 
 app.delete('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, requireAdminWrite, async (req, res) => {
-  const testcaseId = parseNumber(req.params.testcaseId);
+  const testcaseId = parsePositiveInt(req.params.testcaseId);
   if (!testcaseId) {
     res.status(400).json({ message: '잘못된 요청입니다.' });
     return;
@@ -1143,9 +1192,9 @@ app.delete('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, require
 });
 
 app.get('/api/admin/submissions', requireAuth, requireAdminRead, async (req, res) => {
-  const contestId = parseNumber(req.query.contestId);
-  const problemId = parseNumber(req.query.problemId);
-  const userId = parseNumber(req.query.userId);
+  const contestId = parsePositiveInt(req.query.contestId);
+  const problemId = parsePositiveInt(req.query.problemId);
+  const userId = parsePositiveInt(req.query.userId);
   const status = req.query.status ? String(req.query.status) : null;
 
   const where: {
@@ -1182,7 +1231,7 @@ app.get('/api/admin/submissions', requireAuth, requireAdminRead, async (req, res
 });
 
 app.get('/api/admin/summary/by-user', requireAuth, requireAdminRead, async (req, res) => {
-  const contestId = parseNumber(req.query.contestId);
+  const contestId = parsePositiveInt(req.query.contestId);
 
   if (contestId) {
     const rows = await prisma.$queryRaw<
@@ -1217,7 +1266,7 @@ app.get('/api/admin/summary/by-user', requireAuth, requireAdminRead, async (req,
 });
 
 app.get('/api/admin/summary/by-problem', requireAuth, requireAdminRead, async (req, res) => {
-  const contestId = parseNumber(req.query.contestId);
+  const contestId = parsePositiveInt(req.query.contestId);
 
   if (contestId) {
     const rows = await prisma.$queryRaw<
@@ -1269,8 +1318,11 @@ app.listen(port, () => {
   console.log(`Server listening on ${port}`);
 });
 
-process.on('SIGINT', async () => {
+async function shutdown() {
   await prisma.$disconnect();
   process.exit(0);
-});
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 

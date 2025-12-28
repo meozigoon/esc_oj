@@ -437,6 +437,10 @@ export async function judgeSubmission(options: {
     options.problem.generatorCode &&
     options.problem.solutionLanguage &&
     options.problem.solutionCode;
+  const timeLimitMs =
+    Number.isFinite(options.problem.timeLimitMs) && options.problem.timeLimitMs > 0
+      ? options.problem.timeLimitMs
+      : 1000;
   const memoryLimitMb = Math.max(64, options.problem.memoryLimitMb || 256);
   const compileTimeoutMs = 10000;
   let totalRuntime = 0;
@@ -494,7 +498,7 @@ export async function judgeSubmission(options: {
           program: submissionProgram,
           image: options.image,
           input: testcase.input,
-          timeLimitMs: options.problem.timeLimitMs,
+          timeLimitMs,
           memoryLimitMb
         });
         const elapsed = Date.now() - start;
@@ -589,7 +593,7 @@ export async function judgeSubmission(options: {
     }
 
     const generatorProgram = generatorPrepared.program;
-    const generatorTimeoutMs = Math.max(2000, options.problem.timeLimitMs);
+    const generatorTimeoutMs = Math.max(2000, timeLimitMs);
     const generatorRun = await runProgram({
       program: generatorProgram,
       image: options.image,
@@ -660,7 +664,7 @@ export async function judgeSubmission(options: {
         program: solutionProgram,
         image: options.image,
         input,
-        timeLimitMs: options.problem.timeLimitMs,
+        timeLimitMs,
         memoryLimitMb
       });
 
@@ -691,7 +695,7 @@ export async function judgeSubmission(options: {
         program: submissionProgram,
         image: options.image,
         input,
-        timeLimitMs: options.problem.timeLimitMs,
+        timeLimitMs,
         memoryLimitMb
       });
       const elapsed = Date.now() - start;
