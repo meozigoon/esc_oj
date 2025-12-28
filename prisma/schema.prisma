@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Language {
+  C99
+  CPP17
+  JAVA11
+  PYTHON3
+  CS
+}
+
+enum SubmissionStatus {
+  PENDING
+  RUNNING
+  ACCEPTED
+  WRONG_ANSWER
+  COMPILE_ERROR
+  RUNTIME_ERROR
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  PRESENTATION_ERROR
+  SYSTEM_ERROR
+}
+
+model User {
+  id           Int          @id @default(autoincrement())
+  username     String       @unique
+  passwordHash String
+  role         Role         @default(USER)
+  createdAt    DateTime     @default(now())
+  submissions  Submission[]
+
+  @@index([username])
+}
+
+model Contest {
+  id         Int          @id @default(autoincrement())
+  title      String
+  startAt    DateTime
+  endAt      DateTime
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  problems   Problem[]
+  submissions Submission[]
+
+  @@index([startAt])
+  @@index([endAt])
+}
+
+model Problem {
+  id             Int          @id @default(autoincrement())
+  contestId      Int?
+  contest        Contest?     @relation(fields: [contestId], references: [id], onDelete: SetNull)
+  title          String
+  statementPath  String
+  sampleInput    String       @default("")
+  sampleOutput   String       @default("")
+  timeLimitMs    Int
+  memoryLimitMb  Int
+  generatorLanguage Language?
+  generatorCode  String?
+  solutionLanguage Language?
+  solutionCode   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  testcases      Testcase[]
+  submissions    Submission[]
+
+  @@index([contestId])
+}
+
+model Testcase {
+  id        Int     @id @default(autoincrement())
+  problemId Int
+  ord       Int
+  inputPath String
+  outputPath String
+  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([problemId, ord])
+  @@index([problemId])
+}
+
+model Submission {
+  id               Int              @id @default(autoincrement())
+  userId           Int
+  contestId        Int?
+  problemId        Int
+  language         Language
+  code             String
+  status           SubmissionStatus @default(PENDING)
+  message          String           @default("Pending")
+  detail           String?
+  runtimeMs        Int?
+  memoryKb         Int?
+  failedTestcaseOrd Int?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user     User    @relation(fields: [userId], references: [id])
+  contest  Contest? @relation(fields: [contestId], references: [id], onDelete: SetNull)
+  problem  Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([problemId, createdAt])
+  @@index([contestId, createdAt])
+}

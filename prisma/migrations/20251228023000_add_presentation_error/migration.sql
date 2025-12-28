@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "SubmissionStatus" ADD VALUE IF NOT EXISTS 'PRESENTATION_ERROR';
