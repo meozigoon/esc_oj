@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { apiFetch, Contest, ProblemSummary } from '../../api';
+import { useAuth } from '../../auth';
 
 function toLocalInput(value: string) {
   const date = new Date(value);
@@ -23,6 +24,8 @@ function toLocalInput(value: string) {
 export default function AdminContestDetailPage() {
   const { id } = useParams();
   const contestId = Number(id);
+  const { user } = useAuth();
+  const isReadOnly = user?.role === 'viewer';
   const [contest, setContest] = useState<Contest | null>(null);
   const [problems, setProblems] = useState<ProblemSummary[]>([]);
   const [title, setTitle] = useState('');
@@ -76,13 +79,19 @@ export default function AdminContestDetailPage() {
             <Typography variant="h5" fontWeight={700}>
               대회 편집
             </Typography>
-            <TextField label="제목" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <TextField
+              label="제목"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={isReadOnly}
+            />
             <TextField
               label="시작"
               type="datetime-local"
               value={startAt}
               onChange={(e) => setStartAt(e.target.value)}
               InputLabelProps={{ shrink: true }}
+              disabled={isReadOnly}
             />
             <TextField
               label="종료"
@@ -90,9 +99,10 @@ export default function AdminContestDetailPage() {
               value={endAt}
               onChange={(e) => setEndAt(e.target.value)}
               InputLabelProps={{ shrink: true }}
+              disabled={isReadOnly}
             />
             {error && <Typography color="error">{error}</Typography>}
-            <Button variant="contained" onClick={handleSave}>
+            <Button variant="contained" onClick={handleSave} disabled={isReadOnly}>
               저장
             </Button>
           </Stack>
@@ -106,7 +116,12 @@ export default function AdminContestDetailPage() {
               <Typography variant="h6" fontWeight={700}>
                 대회 문제
               </Typography>
-              <Button component={Link} to={`/admin/problems?contestId=${contest.id}`} variant="outlined">
+              <Button
+                component={Link}
+                to={`/admin/problems?contestId=${contest.id}`}
+                variant="outlined"
+                disabled={isReadOnly}
+              >
                 문제 추가
               </Button>
             </Stack>
@@ -117,7 +132,7 @@ export default function AdminContestDetailPage() {
                   divider={index < problems.length - 1}
                   secondaryAction={
                     <Button component={Link} to={`/admin/problems/${problem.id}`} size="small">
-                      편집
+                      {isReadOnly ? '보기' : '편집'}
                     </Button>
                   }
                 >

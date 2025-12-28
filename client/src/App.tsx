@@ -4,6 +4,7 @@ import { AuthProvider } from './auth';
 import { RequireAdmin, RequireAuth } from './components/RequireAuth';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import BenefitPage from './pages/BenefitPage';
 import ContestListPage from './pages/ContestListPage';
 import ContestDetailPage from './pages/ContestDetailPage';
 import ProblemDetailPage from './pages/ProblemDetailPage';
@@ -19,6 +20,7 @@ import AdminProblemDetailPage from './pages/admin/AdminProblemDetailPage';
 import AdminSubmissionsPage from './pages/admin/AdminSubmissionsPage';
 import AdminSummaryPage from './pages/admin/AdminSummaryPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AdminAccessLogsPage from './pages/admin/AdminAccessLogsPage';
 
 export default function App() {
   return (
@@ -27,6 +29,14 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path="login" element={<LoginPage />} />
+          <Route
+            path="benefit"
+            element={
+              <RequireAuth>
+                <BenefitPage />
+              </RequireAuth>
+            }
+          />
           <Route
             path="contests"
             element={
@@ -137,6 +147,14 @@ export default function App() {
             element={
               <RequireAdmin>
                 <AdminUsersPage />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="admin/access-logs"
+            element={
+              <RequireAdmin>
+                <AdminAccessLogsPage />
               </RequireAdmin>
             }
           />

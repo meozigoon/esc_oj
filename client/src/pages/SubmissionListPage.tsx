@@ -12,7 +12,7 @@
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiFetch, Submission, formatDateTime, formatDuration } from '../api';
+import { apiFetch, Submission, formatDateTime, formatDuration, formatMemory } from '../api';
 import StatusChip from '../components/StatusChip';
 
 export default function SubmissionListPage() {
@@ -45,6 +45,7 @@ export default function SubmissionListPage() {
                 <TableCell>언어</TableCell>
                 <TableCell>상태</TableCell>
                 <TableCell>시간</TableCell>
+                <TableCell>메모리</TableCell>
                 <TableCell>제출 시각</TableCell>
                 <TableCell>수정</TableCell>
               </TableRow>
@@ -56,11 +57,14 @@ export default function SubmissionListPage() {
                     <Link to={`/submissions/${submission.id}`}>{submission.id}</Link>
                   </TableCell>
                   <TableCell>{submission.problem?.title ?? '-'}</TableCell>
-                  <TableCell>{submission.language}</TableCell>
+                  <TableCell>
+                    {submission.problem?.submissionType === 'TEXT' ? 'TEXT' : submission.language}
+                  </TableCell>
                   <TableCell>
                     <StatusChip status={submission.status} message={submission.message} />
                   </TableCell>
                   <TableCell>{formatDuration(submission.runtimeMs)}</TableCell>
+                  <TableCell>{formatMemory(submission.memoryKb)}</TableCell>
                   <TableCell>{formatDateTime(submission.createdAt)}</TableCell>
                   <TableCell>
                     <Button

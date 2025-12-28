@@ -1,4 +1,5 @@
-export type Role = 'admin' | 'user';
+export type Role = 'admin' | 'user' | 'viewer';
+export type SubmissionType = 'CODE' | 'TEXT';
 
 export type User = {
   id: number;
@@ -30,6 +31,7 @@ export type ProblemSummary = {
   timeLimitMs?: number;
   memoryLimitMb?: number;
   contestId?: number | null;
+  submissionType?: SubmissionType;
 };
 
 export type Problem = ProblemSummary & {
@@ -39,6 +41,8 @@ export type Problem = ProblemSummary & {
   sampleOutput: string;
   timeLimitMs: number;
   memoryLimitMb: number;
+  submissionType: SubmissionType;
+  textAnswer?: string | null;
   generatorLanguage?: Language | null;
   generatorCode?: string | null;
   solutionLanguage?: Language | null;
@@ -79,6 +83,12 @@ export type Submission = {
   problem?: ProblemSummary | Problem;
   contest?: ContestSummary | Contest | null;
   user?: { id: number; username: string };
+};
+
+export type AccessLog = {
+  id: number;
+  createdAt: string;
+  user: { id: number; username: string };
 };
 
 export type Language = 'C99' | 'CPP17' | 'JAVA11' | 'PYTHON3' | 'CS';
@@ -127,4 +137,15 @@ export function formatDuration(ms: number | null | undefined): string {
     return '-';
   }
   return `${ms} ms`;
+}
+
+export function formatMemory(kb: number | null | undefined): string {
+  if (kb === null || kb === undefined) {
+    return '-';
+  }
+  if (kb < 1024) {
+    return `${kb} KB`;
+  }
+  const mb = kb / 1024;
+  return `${mb.toFixed(1)} MB`;
 }

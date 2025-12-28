@@ -10,6 +10,7 @@
   MenuItem,
   Select,
   Stack,
+  TextField,
   Typography
 } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -36,6 +37,14 @@ const errorStatuses = new Set<SubmissionStatus>([
   'SYSTEM_ERROR'
 ]);
 
+const languageNotes: Record<Language, string[]> = {
+  C99: ['컴파일러: GCC (C99)'],
+  CPP17: ['컴파일러: G++ (C++17)'],
+  JAVA11: ['컴파일러: Java 11 (javac)', '클래스 이름: Main'],
+  PYTHON3: ['런타임: Python 3'],
+  CS: ['컴파일러/런타임: Mono (mcs/mono)', '클래스 이름: MainClass']
+};
+
 export default function ProblemDetailPage() {
   const { id } = useParams();
   const problemId = Number(id);
@@ -50,6 +59,7 @@ export default function ProblemDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const lastLoadedSubmissionId = useRef<number | null>(null);
+  const isTextProblem = problem?.submissionType === 'TEXT';
 
   useEffect(() => {
     if (!problemId) {
@@ -87,7 +97,9 @@ export default function ProblemDetailPage() {
           setSubmitError('다른 문제의 제출입니다.');
           return;
         }
-        setLanguage(submission.language);
+        if (!isTextProblem) {
+          setLanguage(submission.language);
+        }
         setCode(submission.code ?? '');
         setLoadedSubmission(submission);
         lastLoadedSubmissionId.current = submissionId;
@@ -95,7 +107,7 @@ export default function ProblemDetailPage() {
       .catch((err) =>
         setSubmitError(err instanceof Error ? err.message : '제출 코드를 불러오지 못했습니다.')
       );
-  }, [problemId, searchParams, user]);
+  }, [problemId, searchParams, user, isTextProblem]);
 
   const canSubmit = useMemo(() => {
     if (!problem?.contest) {
@@ -114,14 +126,17 @@ export default function ProblemDetailPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
+      const payload: { problemId: number; contestId: number | null; language?: Language; code: string } = {
+        problemId: problem.id,
+        contestId: problem.contestId,
+        code
+      };
+      if (!isTextProblem) {
+        payload.language = language;
+      }
       await apiFetch<{ submissionId: number }>('/api/submissions', {
         method: 'POST',
-        body: JSON.stringify({
-          problemId: problem.id,
-          contestId: problem.contestId,
-          language,
-          code
-        })
+        body: JSON.stringify(payload)
       });
       navigate(`/problems/${problem.id}/submissions`);
     } catch (err) {
@@ -155,7 +170,7 @@ export default function ProblemDetailPage() {
       )}
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={7}>
+        <Grid item xs={12} md={5}>
           <Card sx={{ borderRadius: 2, boxShadow: '0 16px 40px rgba(16,24,40,0.08)' }}>
             <CardContent>
               <Stack spacing={2}>
@@ -196,7 +211,7 @@ export default function ProblemDetailPage() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={5}>
+        <Grid item xs={12} md={7}>
           <Card sx={{ borderRadius: 2, boxShadow: '0 16px 40px rgba(16,24,40,0.08)' }}>
             <CardContent>
               <Stack spacing={2}>
@@ -208,21 +223,50 @@ export default function ProblemDetailPage() {
                     제출 기록
                   </Button>
                 </Stack>
-                <FormControl fullWidth>
-                  <InputLabel id="language-label">언어</InputLabel>
-                  <Select
-                    labelId="language-label"
-                    value={language}
-                    label="언어"
-                    onChange={(e) => setLanguage(e.target.value as Language)}
-                  >
-                    {languageOptions.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                {!isTextProblem && (
+                  <>
+                    <FormControl fullWidth>
+                      <InputLabel id="language-label">언어</InputLabel>
+                      <Select
+                        labelId="language-label"
+                        value={language}
+                        label="언어"
+                        onChange={(e) => setLanguage(e.target.value as Language)}
+                      >
+                        {languageOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <Box
+                      sx={{
+                        borderRadius: 1,
+                        border: '1px solid rgba(15, 23, 42, 0.08)',
+                        backgroundColor: 'rgba(148, 163, 184, 0.12)',
+                        px: 2,
+                        py: 1.5
+                      }}
+                    >
+                      <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                        채점 환경 안내
+                      </Typography>
+                      <Stack spacing={0.5}>
+                        {languageNotes[language].map((note, index) => (
+                          <Typography key={`${language}-${index}`} variant="body2" color="text.secondary">
+                            {note}
+                          </Typography>
+                        ))}
+                      </Stack>
+                    </Box>
+                  </>
+                )}
+                {isTextProblem && (
+                  <Typography variant="body2" color="text.secondary">
+                    텍스트 제출 문제입니다. 공백과 개행을 무시하고 채점합니다.
+                  </Typography>
+                )}
                 {loadedSubmission && errorStatuses.has(loadedSubmission.status) && (
                   <Stack spacing={0.5}>
                     <Typography variant="body2" color="text.secondary">
@@ -235,20 +279,30 @@ export default function ProblemDetailPage() {
                     )}
                   </Stack>
                 )}
-                <Box sx={{ borderRadius: 1, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-                  <Editor
-                    height="420px"
-                    language={languageConfig.monaco}
+                {isTextProblem ? (
+                  <TextField
+                    label="제출 텍스트"
                     value={code}
-                    onChange={(value) => setCode(value ?? '')}
-                    theme="vs"
-                    options={{
-                      fontSize: 14,
-                      minimap: { enabled: false },
-                      scrollBeyondLastLine: false
-                    }}
+                    onChange={(e) => setCode(e.target.value)}
+                    multiline
+                    minRows={10}
                   />
-                </Box>
+                ) : (
+                  <Box sx={{ borderRadius: 1, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                    <Editor
+                      height="420px"
+                      language={languageConfig.monaco}
+                      value={code}
+                      onChange={(value) => setCode(value ?? '')}
+                      theme="vs"
+                      options={{
+                        fontSize: 14,
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false
+                      }}
+                    />
+                  </Box>
+                )}
                 {submitError && <Typography color="error">{submitError}</Typography>}
                 {!user && (
                   <Typography variant="body2" color="text.secondary">

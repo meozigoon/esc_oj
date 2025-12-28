@@ -12,7 +12,7 @@
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { apiFetch, Problem, Submission, formatDateTime, formatDuration } from '../api';
+import { apiFetch, Problem, Submission, formatDateTime, formatDuration, formatMemory } from '../api';
 import StatusChip from '../components/StatusChip';
 
 export default function ProblemSubmissionsPage() {
@@ -56,7 +56,7 @@ export default function ProblemSubmissionsPage() {
     }
     const timer = setInterval(() => {
       fetchSubmissions();
-    }, 2000);
+    }, 1000);
     return () => clearInterval(timer);
   }, [fetchSubmissions, hasRunning]);
 
@@ -88,6 +88,7 @@ export default function ProblemSubmissionsPage() {
                 <TableCell>언어</TableCell>
                 <TableCell>상태</TableCell>
                 <TableCell>시간</TableCell>
+                <TableCell>메모리</TableCell>
                 <TableCell>제출 시각</TableCell>
                 <TableCell>수정</TableCell>
               </TableRow>
@@ -98,11 +99,14 @@ export default function ProblemSubmissionsPage() {
                   <TableCell>
                     <Link to={`/submissions/${submission.id}`}>{submission.id}</Link>
                   </TableCell>
-                  <TableCell>{submission.language}</TableCell>
+                  <TableCell>
+                    {submission.problem?.submissionType === 'TEXT' ? 'TEXT' : submission.language}
+                  </TableCell>
                   <TableCell>
                     <StatusChip status={submission.status} message={submission.message} />
                   </TableCell>
                   <TableCell>{formatDuration(submission.runtimeMs)}</TableCell>
+                  <TableCell>{formatMemory(submission.memoryKb)}</TableCell>
                   <TableCell>{formatDateTime(submission.createdAt)}</TableCell>
                   <TableCell>
                     <Button

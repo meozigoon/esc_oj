@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  VIEWER
 }
 
 enum Language {
@@ -18,6 +19,11 @@ enum Language {
   JAVA11
   PYTHON3
   CS
+}
+
+enum SubmissionType {
+  CODE
+  TEXT
 }
 
 enum SubmissionStatus {
@@ -40,8 +46,20 @@ model User {
   role         Role         @default(USER)
   createdAt    DateTime     @default(now())
   submissions  Submission[]
+  accessLogs   AccessLog[]
 
   @@index([username])
+}
+
+model AccessLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([userId])
 }
 
 model Contest {
@@ -68,6 +86,8 @@ model Problem {
   sampleOutput   String       @default("")
   timeLimitMs    Int
   memoryLimitMb  Int
+  submissionType SubmissionType @default(CODE)
+  textAnswer     String?
   generatorLanguage Language?
   generatorCode  String?
   solutionLanguage Language?

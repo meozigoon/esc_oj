@@ -1,7 +1,7 @@
 ﻿import { Button, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { apiFetch, Submission, formatDateTime, formatDuration } from '../api';
+import { apiFetch, Submission, formatDateTime, formatDuration, formatMemory } from '../api';
 import StatusChip from '../components/StatusChip';
 
 export default function SubmissionDetailPage() {
@@ -33,7 +33,7 @@ export default function SubmissionDetailPage() {
     }
     const timer = setInterval(() => {
       fetchSubmission();
-    }, 2000);
+    }, 1000);
     return () => clearInterval(timer);
   }, [fetchSubmission, submission?.status]);
 
@@ -70,6 +70,9 @@ export default function SubmissionDetailPage() {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             실행 시간: {formatDuration(submission.runtimeMs)}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            메모리: {formatMemory(submission.memoryKb)}
           </Typography>
         </Stack>
         {submission.failedTestcaseOrd && (

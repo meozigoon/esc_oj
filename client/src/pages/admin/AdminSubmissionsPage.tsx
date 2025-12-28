@@ -17,7 +17,7 @@
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiFetch, Submission, SubmissionStatus, formatDateTime } from '../../api';
+import { apiFetch, Submission, SubmissionStatus, formatDateTime, formatMemory } from '../../api';
 import StatusChip from '../../components/StatusChip';
 
 const statusOptions: Array<SubmissionStatus | ''> = [
@@ -29,6 +29,7 @@ const statusOptions: Array<SubmissionStatus | ''> = [
   'COMPILE_ERROR',
   'RUNTIME_ERROR',
   'TIME_LIMIT_EXCEEDED',
+  'MEMORY_LIMIT_EXCEEDED',
   'SYSTEM_ERROR'
 ];
 
@@ -143,6 +144,7 @@ export default function AdminSubmissionsPage() {
                 <TableCell>문제</TableCell>
                 <TableCell>언어</TableCell>
                 <TableCell>상태</TableCell>
+                <TableCell>메모리</TableCell>
                 <TableCell>제출 시각</TableCell>
               </TableRow>
             </TableHead>
@@ -154,10 +156,13 @@ export default function AdminSubmissionsPage() {
                   </TableCell>
                   <TableCell>{submission.user?.username ?? '-'}</TableCell>
                   <TableCell>{submission.problem?.title ?? '-'}</TableCell>
-                  <TableCell>{submission.language}</TableCell>
+                  <TableCell>
+                    {submission.problem?.submissionType === 'TEXT' ? 'TEXT' : submission.language}
+                  </TableCell>
                   <TableCell>
                     <StatusChip status={submission.status} message={submission.message} />
                   </TableCell>
+                  <TableCell>{formatMemory(submission.memoryKb)}</TableCell>
                   <TableCell>{formatDateTime(submission.createdAt)}</TableCell>
                 </TableRow>
               ))}

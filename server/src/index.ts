@@ -14,7 +14,8 @@ import {
   Language,
   PrismaClient,
   Role,
-  SubmissionStatus
+  SubmissionStatus,
+  SubmissionType
 } from '@prisma/client';
 
 dotenv.config();
@@ -86,6 +87,7 @@ const allowedLanguages = new Set<Language>([
   'PYTHON3',
   'CS'
 ]);
+const defaultLanguage: Language = 'CPP17';
 
 function toPosixPath(...segments: string[]): string {
   return path.posix.join(...segments);
@@ -183,7 +185,7 @@ function parseAuthUser(payload: unknown): AuthUser | null {
   }
 
   const role = record.role;
-  if (role !== 'ADMIN' && role !== 'USER') {
+  if (role !== 'ADMIN' && role !== 'USER' && role !== 'VIEWER') {
     return null;
   }
 
@@ -213,7 +215,19 @@ function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   next();
 }
 
-function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+function isAdminRead(role: Role | undefined): boolean {
+  return role === 'ADMIN' || role === 'VIEWER';
+}
+
+function requireAdminRead(req: AuthRequest, res: Response, next: NextFunction) {
+  if (!req.user || !isAdminRead(req.user.role)) {
+    res.status(403).json({ message: '관리자 권한이 필요합니다.' });
+    return;
+  }
+  next();
+}
+
+function requireAdminWrite(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.user || req.user.role !== 'ADMIN') {
     res.status(403).json({ message: '관리자 권한이 필요합니다.' });
     return;
@@ -233,12 +247,21 @@ function parseNumber(value: unknown): number | null {
 }
 
 function normalizeRole(role: Role) {
-  return role === 'ADMIN' ? 'admin' : 'user';
+  if (role === 'ADMIN') {
+    return 'admin';
+  }
+  if (role === 'VIEWER') {
+    return 'viewer';
+  }
+  return 'user';
 }
 
 function parseRole(role: unknown): Role {
   if (role === 'ADMIN' || role === 'admin') {
     return 'ADMIN';
+  }
+  if (role === 'VIEWER' || role === 'viewer') {
+    return 'VIEWER';
   }
   if (role === 'USER' || role === 'user') {
     return 'USER';
@@ -258,6 +281,13 @@ function parseLanguageInput(value: unknown): Language | null {
     return trimmed as Language;
   }
   return null;
+}
+
+function parseSubmissionType(value: unknown): SubmissionType {
+  if (value === 'TEXT' || value === 'text') {
+    return 'TEXT';
+  }
+  return 'CODE';
 }
 
 app.get('/api/health', (_req, res) => {
@@ -306,6 +336,13 @@ app.get('/api/me', (req: AuthRequest, res) => {
   res.json({ user: { id: req.user.id, username: req.user.username, role: normalizeRole(req.user.role) } });
 });
 
+app.post('/api/access-logs', requireAuth, async (req: AuthRequest, res) => {
+  const log = await prisma.accessLog.create({
+    data: { userId: req.user!.id }
+  });
+  res.json({ log: { id: log.id, createdAt: log.createdAt } });
+});
+
 app.get('/api/contests', requireAuth, async (_req, res) => {
   const contests = await prisma.contest.findMany({
     orderBy: { startAt: 'desc' }
@@ -340,7 +377,8 @@ app.get('/api/contests/:id/problems', requireAuth, async (req, res) => {
       id: true,
       title: true,
       timeLimitMs: true,
-      memoryLimitMb: true
+      memoryLimitMb: true,
+      submissionType: true
     }
   });
   res.json({ problems });
@@ -363,6 +401,7 @@ app.get('/api/problems/:id', async (req, res) => {
       sampleOutput: true,
       timeLimitMs: true,
       memoryLimitMb: true,
+      submissionType: true,
       contest: true
     }
   });
@@ -378,10 +417,10 @@ app.get('/api/problems/:id', async (req, res) => {
 app.post('/api/submissions', requireAuth, submitLimiter, async (req: AuthRequest, res) => {
   const problemId = parseNumber(req.body?.problemId);
   const contestIdInput = parseNumber(req.body?.contestId);
-  const language = String(req.body?.language ?? '') as Language;
+  const languageInput = String(req.body?.language ?? '').trim();
   const code = String(req.body?.code ?? '');
 
-  if (!problemId || !allowedLanguages.has(language) || code.trim().length === 0) {
+  if (!problemId || code.trim().length === 0) {
     res.status(400).json({ message: '입력값을 확인해 주세요.' });
     return;
   }
@@ -390,6 +429,23 @@ app.post('/api/submissions', requireAuth, submitLimiter, async (req: AuthRequest
   if (!problem) {
     res.status(404).json({ message: '문제를 찾을 수 없습니다.' });
     return;
+  }
+
+  const submissionType = problem.submissionType ?? 'CODE';
+  let language: Language = defaultLanguage;
+
+  if (submissionType === 'TEXT') {
+    if (!problem.textAnswer || problem.textAnswer.trim().length === 0) {
+      res.status(400).json({ message: '정답 텍스트가 설정되지 않았습니다.' });
+      return;
+    }
+  } else {
+    const parsed = parseLanguageInput(languageInput);
+    if (!parsed) {
+      res.status(400).json({ message: '입력값을 확인해 주세요.' });
+      return;
+    }
+    language = parsed;
   }
 
   let contestId: number | null = contestIdInput ?? problem.contestId ?? null;
@@ -470,12 +526,14 @@ app.get('/api/submissions', requireAuth, async (req: AuthRequest, res) => {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
+      userId: true,
       language: true,
       status: true,
       message: true,
       createdAt: true,
       runtimeMs: true,
-      problem: { select: { id: true, title: true } },
+      memoryKb: true,
+      problem: { select: { id: true, title: true, submissionType: true } },
       contest: { select: { id: true, title: true } },
       user: { select: { id: true, username: true } }
     }
@@ -493,9 +551,20 @@ app.get('/api/submissions/:id', requireAuth, async (req: AuthRequest, res) => {
 
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
-    include: {
-      problem: true,
-      contest: true,
+    select: {
+      id: true,
+      userId: true,
+      language: true,
+      status: true,
+      message: true,
+      detail: true,
+      createdAt: true,
+      runtimeMs: true,
+      memoryKb: true,
+      failedTestcaseOrd: true,
+      code: true,
+      problem: { select: { id: true, title: true, submissionType: true } },
+      contest: { select: { id: true, title: true } },
       user: { select: { id: true, username: true } }
     }
   });
@@ -505,7 +574,7 @@ app.get('/api/submissions/:id', requireAuth, async (req: AuthRequest, res) => {
     return;
   }
 
-  if (req.user!.role !== 'ADMIN' && submission.userId !== req.user!.id) {
+  if (!isAdminRead(req.user?.role) && submission.userId !== req.user!.id) {
     res.status(403).json({ message: '접근 권한이 없습니다.' });
     return;
   }
@@ -535,11 +604,28 @@ app.post('/api/submissions/:id/resubmit', requireAuth, submitLimiter, async (req
     return;
   }
 
-  const language = String(req.body?.language ?? '') as Language;
+  const languageInput = String(req.body?.language ?? '').trim();
   const code = String(req.body?.code ?? '');
-  if (!allowedLanguages.has(language) || code.trim().length === 0) {
+  if (code.trim().length === 0) {
     res.status(400).json({ message: '입력값을 확인해 주세요.' });
     return;
+  }
+
+  const submissionType = original.problem?.submissionType ?? 'CODE';
+  let language: Language = defaultLanguage;
+
+  if (submissionType === 'TEXT') {
+    if (!original.problem?.textAnswer || original.problem.textAnswer.trim().length === 0) {
+      res.status(400).json({ message: '정답 텍스트가 설정되지 않았습니다.' });
+      return;
+    }
+  } else {
+    const parsed = parseLanguageInput(languageInput);
+    if (!parsed) {
+      res.status(400).json({ message: '입력값을 확인해 주세요.' });
+      return;
+    }
+    language = parsed;
   }
 
   if (original.contest) {
@@ -571,12 +657,12 @@ app.post('/api/submissions/:id/resubmit', requireAuth, submitLimiter, async (req
   res.json({ submissionId: submission.id });
 });
 
-app.get('/api/admin/contests', requireAuth, requireAdmin, async (_req, res) => {
+app.get('/api/admin/contests', requireAuth, requireAdminRead, async (_req, res) => {
   const contests = await prisma.contest.findMany({ orderBy: { startAt: 'desc' } });
   res.json({ contests });
 });
 
-app.post('/api/admin/contests', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/admin/contests', requireAuth, requireAdminWrite, async (req, res) => {
   const title = String(req.body?.title ?? '').trim();
   const startAt = new Date(String(req.body?.startAt ?? ''));
   const endAt = new Date(String(req.body?.endAt ?? ''));
@@ -593,7 +679,7 @@ app.post('/api/admin/contests', requireAuth, requireAdmin, async (req, res) => {
   res.json({ contest });
 });
 
-app.put('/api/admin/contests/:id', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/admin/contests/:id', requireAuth, requireAdminWrite, async (req, res) => {
   const contestId = parseNumber(req.params.id);
   if (!contestId) {
     res.status(400).json({ message: '잘못된 contestId입니다.' });
@@ -617,7 +703,7 @@ app.put('/api/admin/contests/:id', requireAuth, requireAdmin, async (req, res) =
   res.json({ contest });
 });
 
-app.delete('/api/admin/contests/:id', requireAuth, requireAdmin, async (req, res) => {
+app.delete('/api/admin/contests/:id', requireAuth, requireAdminWrite, async (req, res) => {
   const contestId = parseNumber(req.params.id);
   if (!contestId) {
     res.status(400).json({ message: '잘못된 contestId입니다.' });
@@ -628,7 +714,7 @@ app.delete('/api/admin/contests/:id', requireAuth, requireAdmin, async (req, res
   res.json({ ok: true });
 });
 
-app.get('/api/admin/users', requireAuth, requireAdmin, async (_req, res) => {
+app.get('/api/admin/users', requireAuth, requireAdminRead, async (_req, res) => {
   const users = await prisma.user.findMany({
     orderBy: { id: 'asc' },
     select: { id: true, username: true, role: true, createdAt: true }
@@ -643,7 +729,7 @@ app.get('/api/admin/users', requireAuth, requireAdmin, async (_req, res) => {
   });
 });
 
-app.post('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/admin/users', requireAuth, requireAdminWrite, async (req, res) => {
   const username = String(req.body?.username ?? '').trim();
   const password = String(req.body?.password ?? '').trim();
   const role = parseRole(req.body?.role);
@@ -669,7 +755,37 @@ app.post('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
   });
 });
 
-app.get('/api/admin/problems', requireAuth, requireAdmin, async (_req, res) => {
+app.put('/api/admin/users/:id/password', requireAuth, requireAdminWrite, async (req, res) => {
+  const userId = parseNumber(req.params.id);
+  if (!userId) {
+    res.status(400).json({ message: '잘못된 userId입니다.' });
+    return;
+  }
+
+  const password = String(req.body?.password ?? '').trim();
+  if (password.length < 4) {
+    res.status(400).json({ message: '비밀번호를 확인해 주세요.' });
+    return;
+  }
+
+  const existing = await prisma.user.findUnique({ where: { id: userId } });
+  if (!existing) {
+    res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash }
+  });
+
+  res.json({
+    user: { id: updated.id, username: updated.username, role: normalizeRole(updated.role) }
+  });
+});
+
+app.get('/api/admin/problems', requireAuth, requireAdminRead, async (_req, res) => {
   const problems = await prisma.problem.findMany({
     orderBy: { id: 'asc' },
     include: { contest: true }
@@ -684,7 +800,7 @@ app.get('/api/admin/problems', requireAuth, requireAdmin, async (_req, res) => {
   res.json({ problems: withStatements });
 });
 
-app.get('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/admin/problems/:id', requireAuth, requireAdminRead, async (req, res) => {
   const problemId = parseNumber(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
@@ -705,7 +821,7 @@ app.get('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res) =
   res.json({ problem: { ...rest, statementMd } });
 });
 
-app.post('/api/admin/problems', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/admin/problems', requireAuth, requireAdminWrite, async (req, res) => {
   const title = String(req.body?.title ?? '').trim();
   const statementMd = String(req.body?.statementMd ?? '');
   const sampleInput = String(req.body?.sampleInput ?? '');
@@ -713,6 +829,8 @@ app.post('/api/admin/problems', requireAuth, requireAdmin, async (req, res) => {
   const timeLimitMs = parseNumber(req.body?.timeLimitMs);
   const memoryLimitMb = parseNumber(req.body?.memoryLimitMb);
   const contestId = parseNumber(req.body?.contestId);
+  const submissionType = parseSubmissionType(req.body?.submissionType);
+  const textAnswer = String(req.body?.textAnswer ?? '');
   const generatorLanguage = parseLanguageInput(req.body?.generatorLanguage);
   const generatorCode = String(req.body?.generatorCode ?? '');
   const solutionLanguage = parseLanguageInput(req.body?.solutionLanguage);
@@ -721,17 +839,22 @@ app.post('/api/admin/problems', requireAuth, requireAdmin, async (req, res) => {
   const hasGeneratorCode = generatorCode.trim().length > 0;
   const hasSolutionCode = solutionCode.trim().length > 0;
 
-  if ((hasGeneratorCode && !generatorLanguage) || (!hasGeneratorCode && generatorLanguage)) {
-    res.status(400).json({ message: '테스트케이스 생성 코드와 언어를 함께 입력해 주세요.' });
-    return;
-  }
+  if (submissionType === 'CODE') {
+    if ((hasGeneratorCode && !generatorLanguage) || (!hasGeneratorCode && generatorLanguage)) {
+      res.status(400).json({ message: '테스트케이스 생성 코드와 언어를 함께 입력해 주세요.' });
+      return;
+    }
 
-  if ((hasSolutionCode && !solutionLanguage) || (!hasSolutionCode && solutionLanguage)) {
-    res.status(400).json({ message: '정답 코드와 언어를 함께 입력해 주세요.' });
-    return;
-  }
-  if (hasGeneratorCode !== hasSolutionCode) {
-    res.status(400).json({ message: '테스트케이스 생성 코드와 정답 코드는 함께 입력해야 합니다.' });
+    if ((hasSolutionCode && !solutionLanguage) || (!hasSolutionCode && solutionLanguage)) {
+      res.status(400).json({ message: '정답 코드와 언어를 함께 입력해 주세요.' });
+      return;
+    }
+    if (hasGeneratorCode !== hasSolutionCode) {
+      res.status(400).json({ message: '테스트케이스 생성 코드와 정답 코드는 함께 입력해야 합니다.' });
+      return;
+    }
+  } else if (textAnswer.trim().length === 0) {
+    res.status(400).json({ message: '정답 텍스트를 입력해 주세요.' });
     return;
   }
 
@@ -749,10 +872,12 @@ app.post('/api/admin/problems', requireAuth, requireAdmin, async (req, res) => {
       timeLimitMs,
       memoryLimitMb,
       contestId: contestId ?? null,
-      generatorLanguage: hasGeneratorCode ? generatorLanguage : null,
-      generatorCode: hasGeneratorCode ? generatorCode : null,
-      solutionLanguage: hasSolutionCode ? solutionLanguage : null,
-      solutionCode: hasSolutionCode ? solutionCode : null
+      submissionType,
+      textAnswer: submissionType === 'TEXT' ? textAnswer : null,
+      generatorLanguage: submissionType === 'CODE' && hasGeneratorCode ? generatorLanguage : null,
+      generatorCode: submissionType === 'CODE' && hasGeneratorCode ? generatorCode : null,
+      solutionLanguage: submissionType === 'CODE' && hasSolutionCode ? solutionLanguage : null,
+      solutionCode: submissionType === 'CODE' && hasSolutionCode ? solutionCode : null
     }
   });
 
@@ -773,7 +898,7 @@ app.post('/api/admin/problems', requireAuth, requireAdmin, async (req, res) => {
   res.json({ problem: { ...rest, statementMd } });
 });
 
-app.put('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/admin/problems/:id', requireAuth, requireAdminWrite, async (req, res) => {
   const problemId = parseNumber(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
@@ -787,6 +912,8 @@ app.put('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res) =
   const timeLimitMs = parseNumber(req.body?.timeLimitMs);
   const memoryLimitMb = parseNumber(req.body?.memoryLimitMb);
   const contestId = parseNumber(req.body?.contestId);
+  const submissionType = parseSubmissionType(req.body?.submissionType);
+  const textAnswer = String(req.body?.textAnswer ?? '');
   const generatorLanguage = parseLanguageInput(req.body?.generatorLanguage);
   const generatorCode = String(req.body?.generatorCode ?? '');
   const solutionLanguage = parseLanguageInput(req.body?.solutionLanguage);
@@ -795,17 +922,22 @@ app.put('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res) =
   const hasGeneratorCode = generatorCode.trim().length > 0;
   const hasSolutionCode = solutionCode.trim().length > 0;
 
-  if ((hasGeneratorCode && !generatorLanguage) || (!hasGeneratorCode && generatorLanguage)) {
-    res.status(400).json({ message: '테스트케이스 생성 코드와 언어를 함께 입력해 주세요.' });
-    return;
-  }
+  if (submissionType === 'CODE') {
+    if ((hasGeneratorCode && !generatorLanguage) || (!hasGeneratorCode && generatorLanguage)) {
+      res.status(400).json({ message: '테스트케이스 생성 코드와 언어를 함께 입력해 주세요.' });
+      return;
+    }
 
-  if ((hasSolutionCode && !solutionLanguage) || (!hasSolutionCode && solutionLanguage)) {
-    res.status(400).json({ message: '정답 코드와 언어를 함께 입력해 주세요.' });
-    return;
-  }
-  if (hasGeneratorCode !== hasSolutionCode) {
-    res.status(400).json({ message: '테스트케이스 생성 코드와 정답 코드는 함께 입력해야 합니다.' });
+    if ((hasSolutionCode && !solutionLanguage) || (!hasSolutionCode && solutionLanguage)) {
+      res.status(400).json({ message: '정답 코드와 언어를 함께 입력해 주세요.' });
+      return;
+    }
+    if (hasGeneratorCode !== hasSolutionCode) {
+      res.status(400).json({ message: '테스트케이스 생성 코드와 정답 코드는 함께 입력해야 합니다.' });
+      return;
+    }
+  } else if (textAnswer.trim().length === 0) {
+    res.status(400).json({ message: '정답 텍스트를 입력해 주세요.' });
     return;
   }
 
@@ -838,10 +970,12 @@ app.put('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res) =
       timeLimitMs,
       memoryLimitMb,
       contestId: contestId ?? null,
-      generatorLanguage: hasGeneratorCode ? generatorLanguage : null,
-      generatorCode: hasGeneratorCode ? generatorCode : null,
-      solutionLanguage: hasSolutionCode ? solutionLanguage : null,
-      solutionCode: hasSolutionCode ? solutionCode : null
+      submissionType,
+      textAnswer: submissionType === 'TEXT' ? textAnswer : null,
+      generatorLanguage: submissionType === 'CODE' && hasGeneratorCode ? generatorLanguage : null,
+      generatorCode: submissionType === 'CODE' && hasGeneratorCode ? generatorCode : null,
+      solutionLanguage: submissionType === 'CODE' && hasSolutionCode ? solutionLanguage : null,
+      solutionCode: submissionType === 'CODE' && hasSolutionCode ? solutionCode : null
     }
   });
 
@@ -849,7 +983,7 @@ app.put('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res) =
   res.json({ problem: { ...rest, statementMd } });
 });
 
-app.delete('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res) => {
+app.delete('/api/admin/problems/:id', requireAuth, requireAdminWrite, async (req, res) => {
   const problemId = parseNumber(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
@@ -861,7 +995,7 @@ app.delete('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res
   res.json({ ok: true });
 });
 
-app.get('/api/admin/problems/:id/testcases', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/admin/problems/:id/testcases', requireAuth, requireAdminRead, async (req, res) => {
   const problemId = parseNumber(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
@@ -883,7 +1017,7 @@ app.get('/api/admin/problems/:id/testcases', requireAuth, requireAdmin, async (r
   res.json({ testcases: enriched });
 });
 
-app.post('/api/admin/problems/:id/testcases', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/admin/problems/:id/testcases', requireAuth, requireAdminWrite, async (req, res) => {
   const problemId = parseNumber(req.params.id);
   if (!problemId) {
     res.status(400).json({ message: '잘못된 problemId입니다.' });
@@ -935,7 +1069,7 @@ app.post('/api/admin/problems/:id/testcases', requireAuth, requireAdmin, async (
   });
 });
 
-app.put('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, requireAdminWrite, async (req, res) => {
   const problemId = parseNumber(req.params.id);
   const testcaseId = parseNumber(req.params.testcaseId);
   if (!problemId || !testcaseId) {
@@ -989,7 +1123,7 @@ app.put('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, requireAdm
   res.json({ testcase: { id: testcase.id, ord: testcase.ord, input, output } });
 });
 
-app.delete('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, requireAdmin, async (req, res) => {
+app.delete('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, requireAdminWrite, async (req, res) => {
   const testcaseId = parseNumber(req.params.testcaseId);
   if (!testcaseId) {
     res.status(400).json({ message: '잘못된 요청입니다.' });
@@ -1008,7 +1142,7 @@ app.delete('/api/admin/problems/:id/testcases/:testcaseId', requireAuth, require
   res.json({ ok: true });
 });
 
-app.get('/api/admin/submissions', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/admin/submissions', requireAuth, requireAdminRead, async (req, res) => {
   const contestId = parseNumber(req.query.contestId);
   const problemId = parseNumber(req.query.problemId);
   const userId = parseNumber(req.query.userId);
@@ -1039,7 +1173,7 @@ app.get('/api/admin/submissions', requireAuth, requireAdmin, async (req, res) =>
     orderBy: { createdAt: 'desc' },
     include: {
       user: { select: { id: true, username: true } },
-      problem: { select: { id: true, title: true } },
+      problem: { select: { id: true, title: true, submissionType: true } },
       contest: { select: { id: true, title: true } }
     }
   });
@@ -1047,7 +1181,7 @@ app.get('/api/admin/submissions', requireAuth, requireAdmin, async (req, res) =>
   res.json({ submissions });
 });
 
-app.get('/api/admin/summary/by-user', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/admin/summary/by-user', requireAuth, requireAdminRead, async (req, res) => {
   const contestId = parseNumber(req.query.contestId);
 
   if (contestId) {
@@ -1082,7 +1216,7 @@ app.get('/api/admin/summary/by-user', requireAuth, requireAdmin, async (req, res
   res.json({ rows });
 });
 
-app.get('/api/admin/summary/by-problem', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/admin/summary/by-problem', requireAuth, requireAdminRead, async (req, res) => {
   const contestId = parseNumber(req.query.contestId);
 
   if (contestId) {
@@ -1115,6 +1249,14 @@ app.get('/api/admin/summary/by-problem', requireAuth, requireAdmin, async (req, 
   `;
 
   res.json({ rows });
+});
+
+app.get('/api/admin/access-logs', requireAuth, requireAdminRead, async (_req, res) => {
+  const logs = await prisma.accessLog.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: { user: { select: { id: true, username: true } } }
+  });
+  res.json({ logs });
 });
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

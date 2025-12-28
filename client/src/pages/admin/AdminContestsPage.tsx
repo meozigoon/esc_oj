@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch, Contest, formatDateTime } from '../../api';
+import { useAuth } from '../../auth';
 
 function toLocalInput(value: Date) {
   const offset = value.getTimezoneOffset();
@@ -18,6 +19,8 @@ function toLocalInput(value: Date) {
 }
 
 export default function AdminContestsPage() {
+  const { user } = useAuth();
+  const isReadOnly = user?.role === 'viewer';
   const [contests, setContests] = useState<Contest[]>([]);
   const [title, setTitle] = useState('');
   const [startAt, setStartAt] = useState(toLocalInput(new Date()));
@@ -73,7 +76,12 @@ export default function AdminContestsPage() {
             <Typography variant="h6" fontWeight={700}>
               새 대회 생성
             </Typography>
-            <TextField label="제목" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <TextField
+              label="제목"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={isReadOnly}
+            />
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField
                 label="시작"
@@ -81,6 +89,7 @@ export default function AdminContestsPage() {
                 value={startAt}
                 onChange={(e) => setStartAt(e.target.value)}
                 InputLabelProps={{ shrink: true }}
+                disabled={isReadOnly}
               />
               <TextField
                 label="종료"
@@ -88,9 +97,10 @@ export default function AdminContestsPage() {
                 value={endAt}
                 onChange={(e) => setEndAt(e.target.value)}
                 InputLabelProps={{ shrink: true }}
+                disabled={isReadOnly}
               />
             </Stack>
-            <Button variant="contained" onClick={handleCreate}>
+            <Button variant="contained" onClick={handleCreate} disabled={isReadOnly}>
               생성
             </Button>
           </Stack>
@@ -111,9 +121,9 @@ export default function AdminContestsPage() {
                   </Typography>
                   <Stack direction="row" spacing={2}>
                     <Button component={Link} to={`/admin/contests/${contest.id}`} variant="outlined">
-                      편집
+                      {isReadOnly ? '보기' : '편집'}
                     </Button>
-                    <Button color="error" onClick={() => handleDelete(contest.id)}>
+                    <Button color="error" onClick={() => handleDelete(contest.id)} disabled={isReadOnly}>
                       삭제
                     </Button>
                   </Stack>

@@ -15,6 +15,7 @@ type ExecResult = {
   stdout: string;
   stderr: string;
   timedOut: boolean;
+  memoryKb?: number | null;
 };
 
 type LanguageConfig = {
@@ -80,6 +81,54 @@ function stripAllWhitespace(value: string): string {
 
 function formatExecError(result: ExecResult): string {
   return result.stderr || result.stdout || 'Unknown error';
+}
+
+const timeOutputPrefixes = [
+  'Command being timed:',
+  'User time (seconds):',
+  'System time (seconds):',
+  'Percent of CPU this job got:',
+  'Elapsed (wall clock) time',
+  'Average shared text size (kbytes):',
+  'Average unshared data size (kbytes):',
+  'Average stack size (kbytes):',
+  'Average total size (kbytes):',
+  'Maximum resident set size (kbytes):',
+  'Average resident set size (kbytes):',
+  'Major (requiring I/O) page faults:',
+  'Minor (reclaiming a frame) page faults:',
+  'Voluntary context switches:',
+  'Involuntary context switches:',
+  'Swaps:',
+  'File system inputs:',
+  'File system outputs:',
+  'Socket messages sent:',
+  'Socket messages received:',
+  'Signals delivered:',
+  'Page size (bytes):',
+  'Exit status:',
+  'Command exited with non-zero status'
+];
+
+function extractTimeStats(stderr: string): { memoryKb: number | null; cleanedStderr: string } {
+  let memoryKb: number | null = null;
+  const cleanedLines: string[] = [];
+  for (const line of stderr.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('Maximum resident set size (kbytes):')) {
+      const raw = trimmed.split(':').slice(1).join(':').trim();
+      const parsed = Number(raw);
+      if (Number.isFinite(parsed)) {
+        memoryKb = parsed;
+      }
+      continue;
+    }
+    if (timeOutputPrefixes.some((prefix) => trimmed.startsWith(prefix))) {
+      continue;
+    }
+    cleanedLines.push(line);
+  }
+  return { memoryKb, cleanedStderr: cleanedLines.join('\n').trimEnd() };
 }
 
 function parseGeneratedInputs(output: string): string[] {
@@ -251,8 +300,25 @@ async function writeFileToVolume(
 }
 
 function wrapTimeout(command: string, timeoutMs: number): string {
-  const seconds = Math.max(1, Math.ceil(timeoutMs / 1000));
-  return `timeout -s KILL ${seconds}s ${command}`;
+  const seconds = Math.max(0.001, timeoutMs / 1000);
+  const formatted = Number.isInteger(seconds)
+    ? String(seconds)
+    : seconds.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+  return `timeout -s KILL ${formatted}s ${command}`;
+}
+
+function wrapTimedCommand(command: string, timeoutMs: number): string {
+  return wrapTimeout(`/usr/bin/time -v ${command}`, timeoutMs);
+}
+
+function pickMaxMemory(current: number | null, next: number | null | undefined): number | null {
+  if (next === null || next === undefined) {
+    return current;
+  }
+  if (current === null) {
+    return next;
+  }
+  return Math.max(current, next);
 }
 
 async function createVolume(volumeName: string): Promise<void> {
@@ -320,8 +386,8 @@ async function runProgram(options: {
   timeLimitMs: number;
   memoryLimitMb: number;
 }): Promise<ExecResult> {
-  const runCommand = wrapTimeout(options.program.config.run, options.timeLimitMs);
-  return dockerRun(
+  const runCommand = wrapTimedCommand(options.program.config.run, options.timeLimitMs);
+  const result = await dockerRun(
     buildDockerArgs({
       image: options.image,
       volumeName: options.program.volumeName,
@@ -331,6 +397,8 @@ async function runProgram(options: {
     options.input,
     options.timeLimitMs + 1000
   );
+  const { memoryKb, cleanedStderr } = extractTimeStats(result.stderr);
+  return { ...result, stderr: cleanedStderr, memoryKb };
 }
 
 export async function judgeSubmission(options: {
@@ -341,6 +409,29 @@ export async function judgeSubmission(options: {
   testcases: TestcaseInput[];
   image: string;
 }): Promise<JudgeResult> {
+  if (options.problem.submissionType === 'TEXT') {
+    const expectedRaw = options.problem.textAnswer ?? '';
+    if (expectedRaw.trim().length === 0) {
+      return {
+        status: SubmissionStatus.SYSTEM_ERROR,
+        message: '시스템 오류',
+        detail: '정답 텍스트가 설정되지 않았습니다.'
+      };
+    }
+    const expected = stripAllWhitespace(normalizeOutput(expectedRaw));
+    const actual = stripAllWhitespace(normalizeOutput(options.code));
+    if (expected === actual) {
+      return {
+        status: SubmissionStatus.ACCEPTED,
+        message: '맞았습니다!'
+      };
+    }
+    return {
+      status: SubmissionStatus.WRONG_ANSWER,
+      message: '틀렸습니다.'
+    };
+  }
+
   const useGeneratedTests =
     options.problem.generatorLanguage &&
     options.problem.generatorCode &&
@@ -349,6 +440,7 @@ export async function judgeSubmission(options: {
   const memoryLimitMb = Math.max(64, options.problem.memoryLimitMb || 256);
   const compileTimeoutMs = 10000;
   let totalRuntime = 0;
+  let maxMemoryKb: number | null = null;
   const volumesToCleanup: string[] = [];
 
   try {
@@ -407,12 +499,14 @@ export async function judgeSubmission(options: {
         });
         const elapsed = Date.now() - start;
         totalRuntime += elapsed;
+        maxMemoryKb = pickMaxMemory(maxMemoryKb, runResult.memoryKb);
 
         if (runResult.timedOut || runResult.code === 124) {
           return {
             status: SubmissionStatus.TIME_LIMIT_EXCEEDED,
             message: '시간 초과',
             runtimeMs: totalRuntime,
+            memoryKb: maxMemoryKb,
             failedTestcaseOrd: testcase.ord
           };
         }
@@ -421,6 +515,7 @@ export async function judgeSubmission(options: {
             status: SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
             message: '메모리 초과',
             runtimeMs: totalRuntime,
+            memoryKb: maxMemoryKb,
             failedTestcaseOrd: testcase.ord
           };
         }
@@ -431,6 +526,7 @@ export async function judgeSubmission(options: {
             message: '런타임 에러',
             detail: formatExecError(runResult),
             runtimeMs: totalRuntime,
+            memoryKb: maxMemoryKb,
             failedTestcaseOrd: testcase.ord
           };
         }
@@ -450,6 +546,7 @@ export async function judgeSubmission(options: {
               message: '출력 형식 오류',
               detail: '공백/개행만 다른 출력입니다.',
               runtimeMs: totalRuntime,
+              memoryKb: maxMemoryKb,
               failedTestcaseOrd: testcase.ord
             };
           }
@@ -458,6 +555,7 @@ export async function judgeSubmission(options: {
             status: SubmissionStatus.WRONG_ANSWER,
             message: '틀렸습니다.',
             runtimeMs: totalRuntime,
+            memoryKb: maxMemoryKb,
             failedTestcaseOrd: testcase.ord
           };
         }
@@ -466,7 +564,8 @@ export async function judgeSubmission(options: {
       return {
         status: SubmissionStatus.ACCEPTED,
         message: '맞았습니다!',
-        runtimeMs: totalRuntime
+        runtimeMs: totalRuntime,
+        memoryKb: maxMemoryKb
       };
     }
 
@@ -597,12 +696,14 @@ export async function judgeSubmission(options: {
       });
       const elapsed = Date.now() - start;
       totalRuntime += elapsed;
+      maxMemoryKb = pickMaxMemory(maxMemoryKb, submissionRun.memoryKb);
 
       if (submissionRun.timedOut || submissionRun.code === 124) {
         return {
           status: SubmissionStatus.TIME_LIMIT_EXCEEDED,
           message: '시간 초과',
           runtimeMs: totalRuntime,
+          memoryKb: maxMemoryKb,
           failedTestcaseOrd: ord
         };
       }
@@ -611,6 +712,7 @@ export async function judgeSubmission(options: {
           status: SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
           message: '메모리 초과',
           runtimeMs: totalRuntime,
+          memoryKb: maxMemoryKb,
           failedTestcaseOrd: ord
         };
       }
@@ -620,6 +722,7 @@ export async function judgeSubmission(options: {
           message: '런타임 에러',
           detail: formatExecError(submissionRun),
           runtimeMs: totalRuntime,
+          memoryKb: maxMemoryKb,
           failedTestcaseOrd: ord
         };
       }
@@ -639,6 +742,7 @@ export async function judgeSubmission(options: {
             message: '출력 형식 오류',
             detail: '공백/개행만 다른 출력입니다.',
             runtimeMs: totalRuntime,
+            memoryKb: maxMemoryKb,
             failedTestcaseOrd: ord
           };
         }
@@ -647,6 +751,7 @@ export async function judgeSubmission(options: {
           status: SubmissionStatus.WRONG_ANSWER,
           message: '틀렸습니다.',
           runtimeMs: totalRuntime,
+          memoryKb: maxMemoryKb,
           failedTestcaseOrd: ord
         };
       }
@@ -655,7 +760,8 @@ export async function judgeSubmission(options: {
     return {
       status: SubmissionStatus.ACCEPTED,
       message: '맞았습니다!',
-      runtimeMs: totalRuntime
+      runtimeMs: totalRuntime,
+      memoryKb: maxMemoryKb
     };
   } catch (error) {
     return {

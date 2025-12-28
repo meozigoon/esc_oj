@@ -17,7 +17,7 @@ export function RequireAdmin({ children }: { children: JSX.Element }) {
   if (loading) {
     return null;
   }
-  if (!user || user.role !== 'admin') {
+  if (!user || (user.role !== 'admin' && user.role !== 'viewer')) {
     return <Navigate to="/contests" replace />;
   }
   return children;

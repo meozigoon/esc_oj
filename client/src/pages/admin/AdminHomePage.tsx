@@ -6,7 +6,8 @@ const items = [
   { title: 'Problems', description: '문제 및 테스트케이스 관리', to: '/admin/problems' },
   { title: 'Submissions', description: '전체 제출 조회', to: '/admin/submissions' },
   { title: 'Summary', description: '참가자/문제별 집계', to: '/admin/summary' },
-  { title: 'Users', description: '계정 생성 및 관리', to: '/admin/users' }
+  { title: 'Users', description: '계정 생성 및 관리', to: '/admin/users' },
+  { title: 'Access Logs', description: '접속 기록 조회', to: '/admin/access-logs' }
 ];
 
 export default function AdminHomePage() {
