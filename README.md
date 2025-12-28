@@ -1,6 +1,4 @@
-﻿# ESC OJ (Local)
-
-Node.js + React 기반의 로컬 LAN 전용 Online Judge 모노레포입니다. 서버/워커/DB/큐/채점 컨테이너가 동일 PC 또는 동일 LAN 내부에서 동작하도록 구성했습니다.
+﻿# ESC OJ
 
 ## 구성
 
