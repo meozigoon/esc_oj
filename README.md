@@ -11,6 +11,10 @@
 
 ## 주요 파일/디렉터리 설명
 
+<details>
+<summary>설명 펼치기</summary>
+<div markdown="1">
+
 -   `docker-compose.yml`: Postgres/Redis/Server/Worker 구성을 정의합니다.
 -   `judge/Dockerfile`: 채점 컨테이너 이미지 정의 (컴파일러/런타임 포함).
 -   `server/Dockerfile`: 서버 빌드/실행 이미지 정의.
@@ -45,6 +49,9 @@
 -   `client/src/pages/admin/AdminUsersPage.tsx`: 관리자 계정 생성.
 -   `data/problems/{id}/statement.mdx`: 문제 본문.
 -   `data/problems/{id}/tests/{ord}.in|.out`: 입력/정답 파일.
+
+</div>
+</details>
 
 ## 필수 사전 준비
 
