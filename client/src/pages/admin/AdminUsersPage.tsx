@@ -40,6 +40,7 @@ export default function AdminUsersPage() {
     const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
     const fetchUsers = useCallback(() => {
+        setError(null);
         apiFetch<{ users: AdminUser[] }>("/api/admin/users")
             .then((data) => setUsers(data.users))
             .catch((err) =>

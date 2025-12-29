@@ -50,6 +50,7 @@ export default function AdminSubmissionsPage() {
     const [error, setError] = useState<string | null>(null);
 
     const fetchSubmissions = useCallback(async () => {
+        setError(null);
         const params = new URLSearchParams();
         if (contestId) params.set("contestId", contestId);
         if (problemId) params.set("problemId", problemId);

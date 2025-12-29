@@ -21,6 +21,7 @@ export default function SubmissionDetailPage() {
         if (!submissionId) {
             return;
         }
+        setError(null);
         try {
             const data = await apiFetch<{ submission: Submission }>(
                 `/api/submissions/${submissionId}`

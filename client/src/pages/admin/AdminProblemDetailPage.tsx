@@ -75,6 +75,7 @@ export default function AdminProblemDetailPage() {
         if (!problemId) {
             return;
         }
+        setError(null);
         apiFetch<{ problem: Problem }>(`/api/admin/problems/${problemId}`)
             .then((data) => {
                 setProblem({
@@ -119,6 +120,7 @@ export default function AdminProblemDetailPage() {
         if (isReadOnly) {
             return;
         }
+        setError(null);
         const useGeneratedTests =
             problem.submissionType === "CODE" && judgeMode === "GENERATED";
         if (useGeneratedTests) {
@@ -180,6 +182,7 @@ export default function AdminProblemDetailPage() {
         if (!confirm("문제를 삭제할까요?")) {
             return;
         }
+        setError(null);
         try {
             await apiFetch(`/api/admin/problems/${problem.id}`, {
                 method: "DELETE",
@@ -199,6 +202,7 @@ export default function AdminProblemDetailPage() {
         if (isReadOnly) {
             return;
         }
+        setError(null);
         try {
             await apiFetch(`/api/admin/problems/${problemId}/testcases`, {
                 method: "POST",
@@ -225,6 +229,7 @@ export default function AdminProblemDetailPage() {
         if (isReadOnly) {
             return;
         }
+        setError(null);
         try {
             await apiFetch(
                 `/api/admin/problems/${problemId}/testcases/${testcase.id}`,
@@ -254,6 +259,7 @@ export default function AdminProblemDetailPage() {
         if (!confirm("테스트케이스를 삭제할까요?")) {
             return;
         }
+        setError(null);
         try {
             await apiFetch(
                 `/api/admin/problems/${problemId}/testcases/${testcaseId}`,

@@ -72,6 +72,7 @@ export default function AdminProblemsPage() {
     const [searchParams] = useSearchParams();
 
     const fetchAll = useCallback(() => {
+        setError(null);
         apiFetch<{ problems: Problem[] }>("/api/admin/problems")
             .then((data) => setProblems(data.problems))
             .catch((err) =>

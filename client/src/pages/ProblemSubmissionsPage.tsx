@@ -33,6 +33,7 @@ export default function ProblemSubmissionsPage() {
         if (!problemId) {
             return;
         }
+        setError(null);
         apiFetch<{ problem: Problem }>(`/api/problems/${problemId}`)
             .then((data) => setProblem(data.problem))
             .catch((err) =>
@@ -48,6 +49,7 @@ export default function ProblemSubmissionsPage() {
         if (!problemId) {
             return;
         }
+        setError(null);
         apiFetch<{ submissions: Submission[] }>(
             `/api/submissions?problemId=${problemId}`
         )

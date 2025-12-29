@@ -40,6 +40,7 @@ export default function AdminSummaryPage() {
     const [error, setError] = useState<string | null>(null);
 
     const fetchSummary = useCallback(async () => {
+        setError(null);
         const params = new URLSearchParams();
         if (contestId) {
             params.set("contestId", contestId);

@@ -113,6 +113,7 @@ const allowedDifficulties = new Set<ProblemDifficulty>([
     "VERY_HIGH",
 ]);
 const defaultDifficulty: ProblemDifficulty = "MID";
+const submissionStatusSet = new Set(Object.values(SubmissionStatus));
 
 function resolveJwtSecret(): string {
     const secret = process.env.JWT_SECRET?.trim();
@@ -579,9 +580,8 @@ app.post(
             return;
         }
 
-        let contest = null;
         if (contestId) {
-            contest = await prisma.contest.findUnique({
+            const contest = await prisma.contest.findUnique({
                 where: { id: contestId },
             });
             if (!contest) {
@@ -645,10 +645,7 @@ app.get("/api/submissions", requireAuth, async (req: AuthRequest, res) => {
     if (problemId) {
         where.problemId = problemId;
     }
-    if (
-        status &&
-        Object.values(SubmissionStatus).includes(status as SubmissionStatus)
-    ) {
+    if (status && submissionStatusSet.has(status as SubmissionStatus)) {
         where.status = status as SubmissionStatus;
     }
 
@@ -1541,10 +1538,7 @@ app.get(
         if (userId) {
             where.userId = userId;
         }
-        if (
-            status &&
-            Object.values(SubmissionStatus).includes(status as SubmissionStatus)
-        ) {
+        if (status && submissionStatusSet.has(status as SubmissionStatus)) {
             where.status = status as SubmissionStatus;
         }
 

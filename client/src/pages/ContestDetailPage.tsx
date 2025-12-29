@@ -26,6 +26,7 @@ export default function ContestDetailPage() {
         if (!contestId) {
             return;
         }
+        setError(null);
         apiFetch<{ contest: Contest }>(`/api/contests/${contestId}`)
             .then((data) => setContest(data.contest))
             .catch((err) =>

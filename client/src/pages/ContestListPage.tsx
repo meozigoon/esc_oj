@@ -17,6 +17,7 @@ export default function ContestListPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        setError(null);
         apiFetch<{ contests: Contest[] }>("/api/contests")
             .then((data) => setContests(data.contests))
             .catch((err) =>

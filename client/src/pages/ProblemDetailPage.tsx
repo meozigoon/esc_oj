@@ -83,6 +83,7 @@ export default function ProblemDetailPage() {
         if (!problemId) {
             return;
         }
+        setError(null);
         apiFetch<{ problem: Problem }>(`/api/problems/${problemId}`)
             .then((data) => setProblem(data.problem))
             .catch((err) =>

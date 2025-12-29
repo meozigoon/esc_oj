@@ -39,6 +39,7 @@ export default function AdminContestDetailPage() {
         if (!contestId) {
             return;
         }
+        setError(null);
         apiFetch<{ contest: Contest }>(`/api/contests/${contestId}`)
             .then((data) => {
                 setContest(data.contest);
@@ -65,6 +66,7 @@ export default function AdminContestDetailPage() {
         if (!contestId) {
             return;
         }
+        setError(null);
         try {
             await apiFetch(`/api/admin/contests/${contestId}`, {
                 method: "PUT",

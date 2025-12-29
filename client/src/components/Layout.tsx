@@ -127,9 +127,7 @@ export default function Layout() {
                     zIndex: 1200,
                 }}
             >
-                <Tooltip
-                    title={mode === "dark" ? "라이트 모드" : "다크 모드"}
-                >
+                <Tooltip title={mode === "dark" ? "라이트 모드" : "다크 모드"}>
                     <IconButton
                         onClick={toggleMode}
                         color="primary"
@@ -138,11 +136,9 @@ export default function Layout() {
                             backgroundColor: theme.palette.background.paper,
                             border: "1px solid",
                             borderColor: appBarBorder,
-                            boxShadow:
-                                "0 12px 30px rgba(15, 23, 42, 0.18)",
+                            boxShadow: "0 12px 30px rgba(15, 23, 42, 0.18)",
                             "&:hover": {
-                                backgroundColor:
-                                    theme.palette.background.paper,
+                                backgroundColor: theme.palette.background.paper,
                             },
                         }}
                     >
@@ -152,7 +148,7 @@ export default function Layout() {
             </Box>
             <Box
                 component="footer"
-                sx={{ borderTop: "1px solid rgba(15, 23, 42, 0.08)", py: 2 }}
+                sx={{ borderTop: `1px solid ${appBarBorder}`, py: 2 }}
             >
                 <Container
                     sx={{

@@ -17,6 +17,7 @@ export default function AdminAccessLogsPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        setError(null);
         apiFetch<{ logs: AccessLog[] }>("/api/admin/access-logs")
             .then((data) => setLogs(data.logs))
             .catch((err) =>

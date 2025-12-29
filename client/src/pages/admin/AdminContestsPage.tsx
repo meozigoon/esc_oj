@@ -30,6 +30,7 @@ export default function AdminContestsPage() {
     const [error, setError] = useState<string | null>(null);
 
     const fetchContests = useCallback(() => {
+        setError(null);
         apiFetch<{ contests: Contest[] }>("/api/admin/contests")
             .then((data) => setContests(data.contests))
             .catch((err) =>
@@ -65,6 +66,7 @@ export default function AdminContestsPage() {
         if (!confirm("대회를 삭제할까요?")) {
             return;
         }
+        setError(null);
         try {
             await apiFetch(`/api/admin/contests/${contestId}`, {
                 method: "DELETE",
