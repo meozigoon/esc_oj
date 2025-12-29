@@ -1,10 +1,13 @@
-import { createTheme } from "@mui/material/styles";
+import { PaletteMode, createTheme } from "@mui/material/styles";
 
-export const theme = createTheme({
-    palette: {
-        mode: "light",
-        primary: { main: "#1f7a8c" },
-        secondary: { main: "#f4a261" },
+const paletteByMode: Record<
+    PaletteMode,
+    {
+        background: { default: string; paper: string };
+        text: { primary: string; secondary: string };
+    }
+> = {
+    light: {
         background: {
             default: "#f6f7fb",
             paper: "#ffffff",
@@ -14,31 +17,54 @@ export const theme = createTheme({
             secondary: "#4b5563",
         },
     },
-    typography: {
-        fontFamily:
-            '"Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-        h1: { fontWeight: 700 },
-        h2: { fontWeight: 700 },
-        h3: { fontWeight: 600 },
-        button: { textTransform: "none", fontWeight: 600 },
+    dark: {
+        background: {
+            default: "#0f172a",
+            paper: "#111827",
+        },
+        text: {
+            primary: "#f9fafb",
+            secondary: "#cbd5e1",
+        },
     },
-    shape: {
-        borderRadius: 8,
-    },
-    components: {
-        MuiPaper: {
-            styleOverrides: {
-                root: {
-                    backgroundImage: "none",
+};
+
+export function getTheme(mode: PaletteMode) {
+    const palette = paletteByMode[mode];
+    return createTheme({
+        palette: {
+            mode,
+            primary: { main: "#1f7a8c" },
+            secondary: { main: "#f4a261" },
+            background: palette.background,
+            text: palette.text,
+        },
+        typography: {
+            fontFamily:
+                '"Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+            h1: { fontWeight: 700 },
+            h2: { fontWeight: 700 },
+            h3: { fontWeight: 600 },
+            button: { textTransform: "none", fontWeight: 600 },
+        },
+        shape: {
+            borderRadius: 8,
+        },
+        components: {
+            MuiPaper: {
+                styleOverrides: {
+                    root: {
+                        backgroundImage: "none",
+                    },
+                },
+            },
+            MuiButton: {
+                styleOverrides: {
+                    root: {
+                        borderRadius: 6,
+                    },
                 },
             },
         },
-        MuiButton: {
-            styleOverrides: {
-                root: {
-                    borderRadius: 6,
-                },
-            },
-        },
-    },
-});
+    });
+}

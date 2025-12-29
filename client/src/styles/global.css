@@ -7,6 +7,27 @@
     --ink: #1f2937;
     --ink-soft: #4b5563;
     --card: #ffffff;
+    --bg-accent-1: rgba(244, 162, 97, 0.15);
+    --bg-accent-2: rgba(31, 122, 140, 0.18);
+    --bg-base-start: #f9fafb;
+    --bg-base-end: #eef1f5;
+    --grid-line: rgba(0, 0, 0, 0.02);
+}
+
+:root[data-theme="dark"] {
+    --bg-surface: #0f172a;
+    --bg-muted: #111827;
+    --accent: #1f7a8c;
+    --accent-2: #f4a261;
+    --accent-3: #2a9d8f;
+    --ink: #f9fafb;
+    --ink-soft: #cbd5e1;
+    --card: #111827;
+    --bg-accent-1: rgba(244, 162, 97, 0.08);
+    --bg-accent-2: rgba(31, 122, 140, 0.12);
+    --bg-base-start: #0b1120;
+    --bg-base-end: #0f172a;
+    --grid-line: rgba(255, 255, 255, 0.04);
 }
 
 * {
@@ -20,15 +41,19 @@ body {
     color: var(--ink);
     background: radial-gradient(
             circle at 20% 0%,
-            rgba(244, 162, 97, 0.15),
+            var(--bg-accent-1),
             transparent 35%
         ),
         radial-gradient(
             circle at 85% 15%,
-            rgba(31, 122, 140, 0.18),
+            var(--bg-accent-2),
             transparent 40%
         ),
-        linear-gradient(180deg, #f9fafb 0%, #eef1f5 100%);
+        linear-gradient(
+            180deg,
+            var(--bg-base-start) 0%,
+            var(--bg-base-end) 100%
+        );
     min-height: 100vh;
 }
 
@@ -37,8 +62,8 @@ body::before {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    background-image: linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+    background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
     background-size: 48px 48px, 48px 48px;
     opacity: 0.3;
     z-index: 0;
