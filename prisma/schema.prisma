@@ -26,6 +26,15 @@ enum SubmissionType {
   TEXT
 }
 
+enum ProblemDifficulty {
+  LOW
+  LOW_MID
+  MID
+  MID_HIGH
+  HIGH
+  VERY_HIGH
+}
+
 enum SubmissionStatus {
   PENDING
   RUNNING
@@ -81,6 +90,7 @@ model Problem {
   contestId      Int?
   contest        Contest?     @relation(fields: [contestId], references: [id], onDelete: SetNull)
   title          String
+  difficulty     ProblemDifficulty @default(MID)
   statementPath  String
   sampleInput    String       @default("")
   sampleOutput   String       @default("")

@@ -1,46 +1,55 @@
 :root {
-  --bg-surface: #fdfcf9;
-  --bg-muted: #f2f4f7;
-  --accent: #1f7a8c;
-  --accent-2: #f4a261;
-  --accent-3: #2a9d8f;
-  --ink: #1f2937;
-  --ink-soft: #4b5563;
-  --card: #ffffff;
+    --bg-surface: #fdfcf9;
+    --bg-muted: #f2f4f7;
+    --accent: #1f7a8c;
+    --accent-2: #f4a261;
+    --accent-3: #2a9d8f;
+    --ink: #1f2937;
+    --ink-soft: #4b5563;
+    --card: #ffffff;
 }
 
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  font-family: 'Space Grotesk', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: var(--ink);
-  background: radial-gradient(circle at 20% 0%, rgba(244, 162, 97, 0.15), transparent 35%),
-    radial-gradient(circle at 85% 15%, rgba(31, 122, 140, 0.18), transparent 40%),
-    linear-gradient(180deg, #f9fafb 0%, #eef1f5 100%);
-  min-height: 100vh;
+    margin: 0;
+    font-family: "Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana,
+        sans-serif;
+    color: var(--ink);
+    background: radial-gradient(
+            circle at 20% 0%,
+            rgba(244, 162, 97, 0.15),
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at 85% 15%,
+            rgba(31, 122, 140, 0.18),
+            transparent 40%
+        ),
+        linear-gradient(180deg, #f9fafb 0%, #eef1f5 100%);
+    min-height: 100vh;
 }
 
 body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image: linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
-  background-size: 48px 48px, 48px 48px;
-  opacity: 0.3;
-  z-index: 0;
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+    background-size: 48px 48px, 48px 48px;
+    opacity: 0.3;
+    z-index: 0;
 }
 
 #root {
-  position: relative;
-  z-index: 1;
+    position: relative;
+    z-index: 1;
 }
 
 a {
-  text-decoration: none;
-  color: inherit;
+    text-decoration: none;
+    color: inherit;
 }
