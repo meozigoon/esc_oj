@@ -1,4 +1,4 @@
-# ESC OJ
+﻿# ESC OJ
 
 ## 구성
 
@@ -7,109 +7,49 @@
 -   `/client`: React + MUI SPA
 -   `/prisma`: 스키마/마이그레이션/시드
 -   `/judge`: 채점용 Docker 이미지
--   `/data`: 문제 MDX와 테스트케이스 파일 저장소
-
-## 주요 파일/디렉터리 설명
+-   `/data`: 문제 MDX/테스트케이스 파일 저장소
 
 <details>
-<summary>설명 펼치기</summary>
+<summary>주요 파일/디렉터리 자세히</summary>
 <div markdown="1">
 
--   `docker-compose.yml`: Postgres/Redis/Server/Worker 구성을 정의합니다.
--   `judge/Dockerfile`: 채점 컨테이너 이미지 정의 (컴파일러/런타임 포함).
--   `server/Dockerfile`: 서버 빌드/실행 이미지 정의.
--   `server/src/index.ts`: 인증/대회/문제/제출/관리자 API 라우트.
--   `worker/Dockerfile`: 워커 빌드/실행 이미지 정의.
--   `worker/src/index.ts`: BullMQ 워커 진입점.
--   `worker/src/judge.ts`: Docker 샌드박스에서 컴파일/실행 및 채점 로직.
--   `prisma/schema.prisma`: DB 스키마 및 enum 정의 (Role/SubmissionType 등).
--   `prisma/seed.js`: 기본 관리자 계정 + 샘플 대회/문제/테스트케이스 시드.
--   `client/index.html`: SPA 엔트리와 사이트 타이틀.
--   `client/src/main.tsx`: React 엔트리, 테마/라우터 설정.
--   `client/src/theme.ts`: MUI 테마(색상/둥근 정도 등).
--   `client/src/api.ts`: API 클라이언트와 타입 정의.
--   `client/src/auth.tsx`: 로그인 상태 관리 컨텍스트.
--   `client/src/components/Layout.tsx`: 상단 네비게이션/레이아웃.
--   `client/src/components/RequireAuth.tsx`: 로그인/관리자(ADMIN/VIEWER) 접근 제어.
--   `client/src/banner.ts`: 메인 화면 ASCII 아트 문구.
--   `client/src/devtoolsBanner.ts`: DevTools 콘솔 배너 및 Benefit 링크.
--   `client/src/pages/HomePage.tsx`: 메인 화면.
--   `client/src/pages/BenefitPage.tsx`: 접속 기록 저장 + 감사 다이얼로그.
--   `client/src/pages/ContestListPage.tsx`: 대회 목록 페이지.
--   `client/src/pages/ContestDetailPage.tsx`: 대회 상세 + 문제 목록.
--   `client/src/pages/ProblemDetailPage.tsx`: 문제 + 제출 에디터(동시 표시).
--   `client/src/pages/ProblemSubmissionsPage.tsx`: 문제별 제출 기록.
--   `client/src/pages/SubmissionListPage.tsx`: 내 제출 기록.
--   `client/src/pages/SubmissionDetailPage.tsx`: 채점 결과 상세.
--   `client/src/pages/LoginPage.tsx`: 로그인 페이지.
--   `client/src/pages/admin/AdminHomePage.tsx`: 관리자 홈.
--   `client/src/pages/admin/AdminContestsPage.tsx`: 대회 생성/삭제.
--   `client/src/pages/admin/AdminContestDetailPage.tsx`: 대회 수정 + 문제 목록.
--   `client/src/pages/admin/AdminProblemsPage.tsx`: 문제 생성/대회 연결/채점 방식 선택.
--   `client/src/pages/admin/AdminProblemDetailPage.tsx`: 문제/테스트케이스/정답/생성 코드 수정.
--   `client/src/pages/admin/AdminSubmissionsPage.tsx`: 전체 제출 조회.
--   `client/src/pages/admin/AdminSummaryPage.tsx`: 통계 집계.
--   `client/src/pages/admin/AdminUsersPage.tsx`: 계정 생성/권한/비밀번호 변경.
--   `client/src/pages/admin/AdminAccessLogsPage.tsx`: 관리자 접속 기록 조회.
--   `data/problems/{id}/statement.mdx`: 문제 본문.
--   `data/problems/{id}/tests/{ord}.in|.out`: 입력/정답 파일.
+-   `docker-compose.yml`: Postgres/Redis/Server/Worker 구성
+-   `judge/Dockerfile`: 채점 컨테이너 이미지 정의 (컴파일러/런타임 포함)
+-   `server/src/index.ts`: 인증/대회/문제/제출/관리자 API 라우트
+-   `worker/src/index.ts`: BullMQ 워커 진입점
+-   `worker/src/judge.ts`: Docker 샌드박스에서 컴파일/실행 및 채점 로직
+-   `prisma/schema.prisma`: DB 스키마 및 enum 정의
+-   `prisma/seed.js`: 기본 관리자 계정 + 샘플 대회/문제/테스트케이스 시드
+-   `client/src/main.tsx`: React 엔트리, 테마/라우터 설정
+-   `client/src/api.ts`: API 클라이언트와 타입 정의
+-   `client/src/auth.tsx`: 로그인 상태 관리 컨텍스트
+-   `client/src/components/Layout.tsx`: 상단 네비게이션/레이아웃
+-   `client/src/pages/*`: 페이지 컴포넌트
+-   `data/problems/{id}/statement.mdx`: 문제 본문
+-   `data/problems/{id}/tests/{ord}.in|.out`: 입력/정답 파일
 
 </div>
 </details>
 
-## 필수 사전 준비
+## 사전 준비
 
 -   Node.js 18+
 -   Docker Desktop (WSL2 권장)
 -   Docker Compose
 
-## Docker로 서버 시작 (API/Worker)
+## 빠른 시작
+
+### 1) 공통 준비 (한 번만)
 
 1. `.env` 준비
-   `.env.example`을 복사해 `.env`를 만든 뒤 `CORS_ORIGIN`을 설정하세요. 프로덕션에서는 `JWT_SECRET`을 강력한 값으로 설정하고, 필요 시 `ADMIN_PASSWORD`도 설정하세요.
+
+    - `.env.example`을 복사해 `.env`를 만든 뒤 `CORS_ORIGIN`을 설정합니다.
+    - 프로덕션에서는 `JWT_SECRET`, `ADMIN_PASSWORD`를 반드시 설정하세요.
 
 2. 채점 이미지 빌드
 
 ```bash
 docker build -t oj-runner:latest ./judge
-docker compose up -d
-npm install
-npm run prisma:migrate
-npm run prisma:seed
-npm run dev
-```
-
-3. DB/Redis/Server/Worker 실행
-
-```bash
-docker compose up -d postgres redis server worker
-```
-
-4. 최초 1회 마이그레이션/시드 (호스트에서 실행)
-
-```bash
-npm install
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
-```
-
--   서버 API: http://localhost:3000
-
-## 빠른 시작
-
-### A) Docker로 server/worker + 로컬 client
-
-1. 채점 이미지 빌드
-
-```bash
-docker build -t oj-runner:latest ./judge
-```
-
-2. DB/Redis/Server/Worker 실행
-
-```bash
-docker compose up -d postgres redis server worker
 ```
 
 3. 패키지 설치
@@ -118,8 +58,7 @@ docker compose up -d postgres redis server worker
 npm install
 ```
 
-4. Prisma 마이그레이션/시드
-   루트의 `.env.example`을 참고해 `.env`를 준비한 뒤 실행하세요. 프로덕션에서는 `JWT_SECRET`, `ADMIN_PASSWORD`를 반드시 설정하세요.
+4. Prisma 준비 (마이그레이션/시드)
 
 ```bash
 npm run prisma:generate
@@ -127,55 +66,57 @@ npm run prisma:migrate
 npm run prisma:seed
 ```
 
-5. 클라이언트 개발 모드
+### 2) 실행 방식 선택
+
+<details>
+<summary>Docker로 server/worker + 로컬 client 실행</summary>
+<div markdown="1">
+
+1. DB/Redis/Server/Worker 실행
+
+```bash
+docker compose up -d postgres redis server worker
+```
+
+2. 클라이언트 개발 모드
 
 ```bash
 npm run dev -w client
 ```
 
-### B) 로컬에서 server/worker/client 모두 실행
+-   클라이언트: http://localhost:5173
+-   서버 API: http://localhost:3000
 
-1. 채점 이미지 빌드
+</div>
+</details>
 
-```bash
-docker build -t oj-runner:latest ./judge
-```
+<details>
+<summary>로컬에서 server/worker/client 모두 실행</summary>
+<div markdown="1">
 
-2. DB/Redis 실행
+1. DB/Redis 실행
 
 ```bash
 docker compose up -d postgres redis
 ```
 
-3. 패키지 설치
-
-```bash
-npm install
-```
-
-4. Prisma 마이그레이션/시드
-
-```bash
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
-```
-
-5. 로컬 dev 서버 실행
+2. 로컬 dev 서버 실행
 
 ```bash
 npm run dev
 ```
 
 -   클라이언트: http://localhost:5173
--   서버: http://localhost:3000 (PORT 환경변수로 변경 가능)
+-   서버 API: http://localhost:3000 (PORT 환경변수로 변경 가능)
+
+</div>
+</details>
 
 ## 기본 계정 및 권한
 
 -   username: `admin`
 -   password: `admin1234`
 -   프로덕션 환경에서는 `ADMIN_PASSWORD`로 시드 기본 비밀번호를 변경하세요.
--   프로덕션 환경에서는 `JWT_SECRET`을 강력한 값으로 설정하세요.
 
 권한:
 
@@ -197,21 +138,7 @@ npm run dev
 -   문제 유형:
     -   코드 제출(CODE): 언어 선택 후 제출
     -   텍스트 제출(TEXT): 텍스트만 제출, 공백/개행 무시 비교
--   채점 방식(코드 제출):
-    -   테스트케이스 입력
-    -   생성 코드(Generator) + 정답 코드(Solution)로 채점
--   제출 흐름:
-    -   문제 화면에서 제출 → 문제별 제출 기록 화면으로 이동
-    -   제출 기록/상세 화면의 `수정` 버튼으로 기존 코드 재사용
--   접속 기록:
-    -   `/benefit` 페이지 방문 시 접속 로그를 남기고 감사 다이얼로그 표시
-
-## LAN 접속 (다른 기기에서 제출)
-
-1. 호스트 PC에서 클라이언트를 실행합니다.
-2. 다른 기기에서 `http://<호스트PC_LAN_IP>:5173`로 접속합니다.
-3. Docker 사용 시 `.env`에 `CORS_ORIGIN=http://localhost:5173,http://<호스트PC_LAN_IP>:5173`를 추가하고 `docker compose up -d --build server`로 재시작합니다.
-4. Windows 방화벽에서 5173(클라이언트), 3000(서버) 인바운드 허용이 필요할 수 있습니다.
+-   채점 방식(코드 제출): 테스트케이스 입력 또는 생성 코드(Generator) + 정답 코드(Solution)
 
 ## 제출 언어 지원
 
@@ -235,25 +162,21 @@ npm run dev
 
 ## 문제/테스트케이스 파일 저장
 
--   문제 본문은 `statement.mdx`로 저장됩니다.
--   테스트케이스는 `tests/{ord}.in` / `tests/{ord}.out` 텍스트 파일로 저장됩니다.
+-   문제 본문: `./data/problems/{problemId}/statement.mdx`
+-   테스트케이스: `./data/problems/{problemId}/tests/{ord}.in` / `.out`
 -   기본 경로는 `./data/problems/{problemId}`이며, `DATA_DIR` 환경변수로 변경할 수 있습니다.
+
+## LAN 접속 (다른 기기에서 제출)
+
+1. 호스트 PC에서 클라이언트를 실행합니다.
+2. 다른 기기에서 `http://<호스트PC_LAN_IP>:5173`로 접속합니다.
+3. Docker 사용 시 `.env`에 `CORS_ORIGIN=http://localhost:5173,http://<호스트PC_LAN_IP>:5173`를 추가하고 `docker compose up -d --build server`로 재시작합니다.
+4. Windows 방화벽에서 5173(클라이언트), 3000(서버) 인바운드 허용이 필요할 수 있습니다.
 
 ## DB 확인
 
 ```bash
 npx prisma studio --schema=prisma/schema.prisma
-```
-
-## 실행 요약
-
-```bash
-docker build -t oj-runner:latest ./judge
-docker compose up -d
-npm install
-npm run prisma:migrate
-npm run prisma:seed
-npm run dev
 ```
 
 ## 참고
