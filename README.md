@@ -1,6 +1,6 @@
 ﻿# ESC OJ
 
-Online Judge System for ESC, Computer Science Club of Hansung Science High School, Entry Exam.
+Online Judge System for ESC, Computer Science Club of Hansung Science High School, Admission Exam.
 
 ## 구성
 
