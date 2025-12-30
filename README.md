@@ -1,5 +1,7 @@
 ﻿# ESC OJ
 
+Online Judge System for ESC, Computer Science Club of Hansung Science High School, Entry Exam.
+
 ## 구성
 
 -   `/server`: Express + Prisma API 서버
