@@ -1014,6 +1014,44 @@ app.put(
     }
 );
 
+app.delete(
+    "/api/admin/users/:id",
+    requireAuth,
+    requireAdminWrite,
+    async (req, res) => {
+        const userId = parsePositiveInt(req.params.id);
+        if (!userId) {
+            res.status(400).json({ message: "잘못된 userId입니다." });
+            return;
+        }
+
+        try {
+            await prisma.$transaction(async (tx) => {
+                await tx.submission.deleteMany({ where: { userId } });
+                await tx.accessLog.deleteMany({ where: { userId } });
+                await tx.user.delete({ where: { id: userId } });
+            });
+            res.json({ ok: true });
+        } catch (error) {
+            if (isNotFoundError(error)) {
+                res.status(404).json({ message: "사용자를 찾을 수 없습니다." });
+                return;
+            }
+            if (
+                error instanceof Prisma.PrismaClientKnownRequestError &&
+                error.code === "P2003"
+            ) {
+                res.status(409).json({
+                    message:
+                        "연관 데이터가 남아 있어 삭제할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+                });
+                return;
+            }
+            throw error;
+        }
+    }
+);
+
 app.get(
     "/api/admin/problems",
     requireAuth,

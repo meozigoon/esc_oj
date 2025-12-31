@@ -3,10 +3,13 @@
     Button,
     Card,
     CardContent,
+    IconButton,
+    InputAdornment,
     Stack,
     TextField,
     Typography,
 } from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
@@ -17,6 +20,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
     const { refresh } = useAuth();
 
@@ -61,10 +65,32 @@ export default function LoginPage() {
                         />
                         <TextField
                             label="비밀번호"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            onClick={() =>
+                                                setShowPassword((prev) => !prev)
+                                            }
+                                            onMouseDown={(event) =>
+                                                event.preventDefault()
+                                            }
+                                            edge="end"
+                                            aria-label="비밀번호 보기"
+                                        >
+                                            {showPassword ? (
+                                                <VisibilityOff />
+                                            ) : (
+                                                <Visibility />
+                                            )}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                         {error && (
                             <Typography color="error" variant="body2">
@@ -78,9 +104,6 @@ export default function LoginPage() {
                         >
                             로그인
                         </Button>
-                        <Typography variant="body2" color="text.secondary">
-                            계정 생성은 관리자에게 요청해 주세요.
-                        </Typography>
                     </Stack>
                 </CardContent>
             </Card>

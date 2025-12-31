@@ -190,6 +190,12 @@ export default function ProblemDetailPage() {
         return <Typography>{error ?? "Loading..."}</Typography>;
     }
 
+    const sampleInputValue = problem.sampleInput ?? "";
+    const sampleOutputValue = problem.sampleOutput ?? "";
+    const hasSampleInput = sampleInputValue.trim().length > 0;
+    const hasSampleOutput = sampleOutputValue.trim().length > 0;
+    const hasSamples = hasSampleInput || hasSampleOutput;
+
     return (
         <Stack spacing={3}>
             <Stack spacing={1}>
@@ -229,43 +235,65 @@ export default function ProblemDetailPage() {
                                 <ReactMarkdown>
                                     {problem.statementMd}
                                 </ReactMarkdown>
-                                <Divider />
-                                <Typography
-                                    variant="subtitle1"
-                                    fontWeight={600}
-                                >
-                                    예제 입력
-                                </Typography>
-                                <Box
-                                    component="pre"
-                                    sx={{
-                                        p: 2,
-                                        backgroundColor:
-                                            "rgba(31, 122, 140, 0.08)",
-                                        borderRadius: 1,
-                                        fontFamily: "monospace",
-                                    }}
-                                >
-                                    {problem.sampleInput}
-                                </Box>
-                                <Typography
-                                    variant="subtitle1"
-                                    fontWeight={600}
-                                >
-                                    예제 출력
-                                </Typography>
-                                <Box
-                                    component="pre"
-                                    sx={{
-                                        p: 2,
-                                        backgroundColor:
-                                            "rgba(244, 162, 97, 0.12)",
-                                        borderRadius: 1,
-                                        fontFamily: "monospace",
-                                    }}
-                                >
-                                    {problem.sampleOutput}
-                                </Box>
+                                {hasSamples ? (
+                                    <>
+                                        <Divider />
+                                        {hasSampleInput && (
+                                            <>
+                                                <Typography
+                                                    variant="subtitle1"
+                                                    fontWeight={600}
+                                                >
+                                                    예제 입력
+                                                </Typography>
+                                                <Box
+                                                    component="pre"
+                                                    sx={{
+                                                        p: 2,
+                                                        backgroundColor:
+                                                            "rgba(31, 122, 140, 0.08)",
+                                                        borderRadius: 1,
+                                                        fontFamily: "monospace",
+                                                    }}
+                                                >
+                                                    {sampleInputValue}
+                                                </Box>
+                                            </>
+                                        )}
+                                        {hasSampleOutput && (
+                                            <>
+                                                <Typography
+                                                    variant="subtitle1"
+                                                    fontWeight={600}
+                                                >
+                                                    예제 출력
+                                                </Typography>
+                                                <Box
+                                                    component="pre"
+                                                    sx={{
+                                                        p: 2,
+                                                        backgroundColor:
+                                                            "rgba(244, 162, 97, 0.12)",
+                                                        borderRadius: 1,
+                                                        fontFamily: "monospace",
+                                                    }}
+                                                >
+                                                    {sampleOutputValue}
+                                                </Box>
+                                            </>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Divider />
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                        >
+                                            예제 입출력이 없습니다.
+                                        </Typography>
+                                    </>
+                                )}
                             </Stack>
                         </CardContent>
                     </Card>
