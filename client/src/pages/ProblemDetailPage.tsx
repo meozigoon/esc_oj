@@ -98,6 +98,8 @@ export default function ProblemDetailPage() {
     useEffect(() => {
         setCode("");
         setSubmitError(null);
+        setLoadedSubmission(null);
+        lastLoadedSubmissionId.current = null;
     }, [problemId]);
 
     useEffect(() => {
@@ -108,6 +110,8 @@ export default function ProblemDetailPage() {
             return;
         }
         if (!user) {
+            lastLoadedSubmissionId.current = null;
+            setLoadedSubmission(null);
             setSubmitError("로그인 후 제출 코드를 불러올 수 있습니다.");
             return;
         }

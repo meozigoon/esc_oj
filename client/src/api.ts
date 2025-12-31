@@ -103,13 +103,20 @@ export type AccessLog = {
 export type Language = "C99" | "CPP17" | "JAVA11" | "PYTHON3" | "CS";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+});
 
 export async function apiFetch<T>(
     path: string,
     options: RequestInit = {}
 ): Promise<T> {
     const headers = new Headers(options.headers ?? {});
-    if (!headers.has("Content-Type") && options.body) {
+    if (!headers.has("Content-Type") && typeof options.body === "string") {
         headers.set("Content-Type", "application/json");
     }
 
@@ -135,13 +142,10 @@ export async function apiFetch<T>(
 
 export function formatDateTime(value: string | Date): string {
     const date = typeof value === "string" ? new Date(value) : value;
-    return new Intl.DateTimeFormat("ko-KR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(date);
+    if (Number.isNaN(date.getTime())) {
+        return "-";
+    }
+    return dateFormatter.format(date);
 }
 
 export function formatDuration(ms: number | null | undefined): string {

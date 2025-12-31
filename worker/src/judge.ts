@@ -68,7 +68,7 @@ const languageConfigs: Record<Language, LanguageConfig> = {
 };
 
 function normalizeOutput(value: string): string {
-    return value.replace(/\r\n/g, "\n");
+    return value.replace(/\r\n?/g, "\n");
 }
 
 function trimTrailingWhitespace(value: string): string {

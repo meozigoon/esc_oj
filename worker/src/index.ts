@@ -121,6 +121,11 @@ process.on("SIGTERM", async () => {
 
 async function shutdown() {
     await worker.close();
+    try {
+        await redis.quit();
+    } catch {
+        // ignore shutdown errors
+    }
     await prisma.$disconnect();
     process.exit(0);
 }

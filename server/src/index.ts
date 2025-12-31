@@ -1720,6 +1720,16 @@ app.listen(port, () => {
 });
 
 async function shutdown() {
+    try {
+        await queue.close();
+    } catch {
+        // ignore shutdown errors
+    }
+    try {
+        await redis.quit();
+    } catch {
+        // ignore shutdown errors
+    }
     await prisma.$disconnect();
     process.exit(0);
 }
