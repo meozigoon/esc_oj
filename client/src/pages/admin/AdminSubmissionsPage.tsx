@@ -16,7 +16,7 @@
     Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
     apiFetch,
     Submission,
@@ -48,6 +48,24 @@ export default function AdminSubmissionsPage() {
     const [status, setStatus] = useState<SubmissionStatus | "">("");
     const [search, setSearch] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [searchParams] = useSearchParams();
+
+    useEffect(() => {
+        const nextContestId = searchParams.get("contestId") ?? "";
+        const nextProblemId = searchParams.get("problemId") ?? "";
+        const nextUserId = searchParams.get("userId") ?? "";
+        const statusParam = searchParams.get("status") ?? "";
+        const nextStatus = statusOptions.includes(
+            statusParam as SubmissionStatus
+        )
+            ? (statusParam as SubmissionStatus | "")
+            : "";
+
+        setContestId((prev) => (prev !== nextContestId ? nextContestId : prev));
+        setProblemId((prev) => (prev !== nextProblemId ? nextProblemId : prev));
+        setUserId((prev) => (prev !== nextUserId ? nextUserId : prev));
+        setStatus((prev) => (prev !== nextStatus ? nextStatus : prev));
+    }, [searchParams]);
 
     const fetchSubmissions = useCallback(async () => {
         setError(null);

@@ -81,6 +81,7 @@ export default function AdminProblemDetailPage() {
                 setProblem({
                     ...data.problem,
                     difficulty: data.problem.difficulty ?? "MID",
+                    score: data.problem.score ?? 100,
                 });
                 setJudgeMode(
                     hasGeneratedTests(data.problem) ? "GENERATED" : "MANUAL"
@@ -146,6 +147,7 @@ export default function AdminProblemDetailPage() {
                     sampleOutput: problem.sampleOutput,
                     timeLimitMs: problem.timeLimitMs,
                     memoryLimitMb: problem.memoryLimitMb,
+                    score: problem.score ?? 0,
                     difficulty: problem.difficulty ?? "MID",
                     contestId: problem.contestId ?? null,
                     submissionType: problem.submissionType,
@@ -370,6 +372,20 @@ export default function AdminProblemDetailPage() {
                                         memoryLimitMb: Number(e.target.value),
                                     })
                                 }
+                                disabled={isReadOnly}
+                            />
+                            <TextField
+                                label="점수"
+                                type="number"
+                                value={problem.score ?? 0}
+                                onChange={(e) => {
+                                    const next = Number(e.target.value);
+                                    setProblem({
+                                        ...problem,
+                                        score: Number.isFinite(next) ? next : 0,
+                                    });
+                                }}
+                                inputProps={{ min: 0 }}
                                 disabled={isReadOnly}
                             />
                             <FormControl>

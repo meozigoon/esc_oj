@@ -50,6 +50,7 @@ export type Problem = ProblemSummary & {
     timeLimitMs: number;
     memoryLimitMb: number;
     difficulty?: ProblemDifficulty;
+    score?: number;
     submissionType: SubmissionType;
     textAnswer?: string | null;
     generatorLanguage?: Language | null;

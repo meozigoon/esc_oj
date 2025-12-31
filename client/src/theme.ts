@@ -1,4 +1,5 @@
-import { PaletteMode, createTheme } from "@mui/material/styles";
+import { PaletteMode } from "@mui/material";
+import { createTheme } from "@mui/material/styles";
 
 const paletteByMode: Record<
     PaletteMode,

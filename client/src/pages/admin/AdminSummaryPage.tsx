@@ -3,6 +3,10 @@
     Button,
     Card,
     CardContent,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
     Stack,
     Tab,
     Tabs,
@@ -15,7 +19,8 @@
     Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { apiFetch } from "../../api";
+import { Link } from "react-router-dom";
+import { apiFetch, Contest } from "../../api";
 
 type UserSummaryRow = {
     id: number;
@@ -31,11 +36,23 @@ type ProblemSummaryRow = {
     accepted: number;
 };
 
+type LeaderboardRow = {
+    rank: number;
+    id: number;
+    username: string;
+    score: number;
+    wrongs: number;
+};
+
 export default function AdminSummaryPage() {
     const [tab, setTab] = useState(0);
     const [contestId, setContestId] = useState("");
+    const [contests, setContests] = useState<Contest[]>([]);
     const [userRows, setUserRows] = useState<UserSummaryRow[]>([]);
     const [problemRows, setProblemRows] = useState<ProblemSummaryRow[]>([]);
+    const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[]>(
+        []
+    );
     const [search, setSearch] = useState("");
     const [error, setError] = useState<string | null>(null);
 
@@ -46,14 +63,24 @@ export default function AdminSummaryPage() {
             params.set("contestId", contestId);
         }
         try {
-            const userData = await apiFetch<{ rows: UserSummaryRow[] }>(
-                `/api/admin/summary/by-user?${params.toString()}`
-            );
-            const problemData = await apiFetch<{ rows: ProblemSummaryRow[] }>(
-                `/api/admin/summary/by-problem?${params.toString()}`
-            );
+            const [userData, problemData] = await Promise.all([
+                apiFetch<{ rows: UserSummaryRow[] }>(
+                    `/api/admin/summary/by-user?${params.toString()}`
+                ),
+                apiFetch<{ rows: ProblemSummaryRow[] }>(
+                    `/api/admin/summary/by-problem?${params.toString()}`
+                ),
+            ]);
             setUserRows(userData.rows);
             setProblemRows(problemData.rows);
+            if (contestId) {
+                const leaderboardData = await apiFetch<{
+                    rows: LeaderboardRow[];
+                }>(`/api/admin/leaderboard?contestId=${contestId}`);
+                setLeaderboardRows(leaderboardData.rows);
+            } else {
+                setLeaderboardRows([]);
+            }
         } catch (err) {
             setError(
                 err instanceof Error
@@ -66,6 +93,12 @@ export default function AdminSummaryPage() {
     useEffect(() => {
         fetchSummary();
     }, [fetchSummary]);
+
+    useEffect(() => {
+        apiFetch<{ contests: Contest[] }>("/api/admin/contests")
+            .then((data) => setContests(data.contests))
+            .catch(() => undefined);
+    }, []);
 
     const filteredUsers = useMemo(() => {
         const keyword = search.trim().toLowerCase();
@@ -82,6 +115,14 @@ export default function AdminSummaryPage() {
             row.title.toLowerCase().includes(keyword)
         );
     }, [search, problemRows]);
+
+    const filteredLeaderboard = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+        if (!keyword) return leaderboardRows;
+        return leaderboardRows.filter((row) =>
+            row.username.toLowerCase().includes(keyword)
+        );
+    }, [leaderboardRows, search]);
 
     return (
         <Stack spacing={3}>
@@ -105,11 +146,29 @@ export default function AdminSummaryPage() {
                             spacing={2}
                             alignItems="center"
                         >
-                            <TextField
-                                label="Contest ID (선택)"
-                                value={contestId}
-                                onChange={(e) => setContestId(e.target.value)}
-                            />
+                            <FormControl sx={{ minWidth: 220 }}>
+                                <InputLabel id="contest-select-label">
+                                    대회
+                                </InputLabel>
+                                <Select
+                                    labelId="contest-select-label"
+                                    label="대회"
+                                    value={contestId}
+                                    onChange={(e) =>
+                                        setContestId(String(e.target.value))
+                                    }
+                                >
+                                    <MenuItem value="">전체</MenuItem>
+                                    {contests.map((contest) => (
+                                        <MenuItem
+                                            key={contest.id}
+                                            value={String(contest.id)}
+                                        >
+                                            {contest.title} (#{contest.id})
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
                             <TextField
                                 label="검색"
                                 value={search}
@@ -127,6 +186,7 @@ export default function AdminSummaryPage() {
             <Tabs value={tab} onChange={(_, value) => setTab(value)}>
                 <Tab label="참가자별" />
                 <Tab label="문제별" />
+                <Tab label="순위" />
             </Tabs>
 
             <Card
@@ -136,7 +196,7 @@ export default function AdminSummaryPage() {
                 }}
             >
                 <CardContent>
-                    {tab === 0 ? (
+                    {tab === 0 && (
                         <Box>
                             <Table>
                                 <TableHead>
@@ -161,7 +221,8 @@ export default function AdminSummaryPage() {
                                 </TableBody>
                             </Table>
                         </Box>
-                    ) : (
+                    )}
+                    {tab === 1 && (
                         <Box>
                             <Table>
                                 <TableHead>
@@ -183,6 +244,57 @@ export default function AdminSummaryPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                        </Box>
+                    )}
+                    {tab === 2 && (
+                        <Box>
+                            {!contestId ? (
+                                <Typography color="text.secondary">
+                                    대회를 선택하면 순위표를 확인할 수 있습니다.
+                                </Typography>
+                            ) : (
+                                <Table>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>순위</TableCell>
+                                            <TableCell>참가자</TableCell>
+                                            <TableCell>점수</TableCell>
+                                            <TableCell>오답</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {filteredLeaderboard.map((row) => (
+                                            <TableRow key={row.id}>
+                                                <TableCell>
+                                                    {row.rank}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        component={Link}
+                                                        to={`/admin/submissions?contestId=${contestId}&userId=${row.id}`}
+                                                        size="small"
+                                                    >
+                                                        {row.username}
+                                                    </Button>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {row.score}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {row.wrongs}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {filteredLeaderboard.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={4}>
+                                                    데이터가 없습니다.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            )}
                         </Box>
                     )}
                 </CardContent>

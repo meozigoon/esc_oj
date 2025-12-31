@@ -56,6 +56,7 @@ export default function AdminProblemsPage() {
     const [sampleOutput, setSampleOutput] = useState("");
     const [timeLimitMs, setTimeLimitMs] = useState(1000);
     const [memoryLimitMb, setMemoryLimitMb] = useState(256);
+    const [score, setScore] = useState(100);
     const [difficulty, setDifficulty] = useState<ProblemDifficulty>("MID");
     const [contestId, setContestId] = useState<number | "">("");
     const [submissionType, setSubmissionType] =
@@ -129,6 +130,7 @@ export default function AdminProblemsPage() {
                     sampleOutput,
                     timeLimitMs,
                     memoryLimitMb,
+                    score,
                     difficulty,
                     contestId: contestId === "" ? null : contestId,
                     submissionType,
@@ -152,6 +154,7 @@ export default function AdminProblemsPage() {
             setSubmissionType("CODE");
             setJudgeMode("MANUAL");
             setDifficulty("MID");
+            setScore(100);
             setTextAnswer("");
             setGeneratorLanguage("");
             setGeneratorCode("");
@@ -232,6 +235,17 @@ export default function AdminProblemsPage() {
                                 onChange={(e) =>
                                     setMemoryLimitMb(Number(e.target.value))
                                 }
+                                disabled={isReadOnly}
+                            />
+                            <TextField
+                                label="점수"
+                                type="number"
+                                value={score}
+                                onChange={(e) => {
+                                    const next = Number(e.target.value);
+                                    setScore(Number.isFinite(next) ? next : 0);
+                                }}
+                                inputProps={{ min: 0 }}
                                 disabled={isReadOnly}
                             />
                             <FormControl>

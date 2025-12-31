@@ -91,6 +91,7 @@ model Problem {
   contest        Contest?     @relation(fields: [contestId], references: [id], onDelete: SetNull)
   title          String
   difficulty     ProblemDifficulty @default(MID)
+  score          Int          @default(100)
   statementPath  String
   sampleInput    String       @default("")
   sampleOutput   String       @default("")

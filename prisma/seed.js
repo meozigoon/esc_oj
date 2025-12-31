@@ -77,6 +77,7 @@ async function main() {
                 timeLimitMs: 1000,
                 memoryLimitMb: 256,
                 difficulty: "LOW",
+                score: 100,
             },
         }));
 

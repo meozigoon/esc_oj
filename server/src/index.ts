@@ -113,6 +113,7 @@ const allowedDifficulties = new Set<ProblemDifficulty>([
     "VERY_HIGH",
 ]);
 const defaultDifficulty: ProblemDifficulty = "MID";
+const defaultScore = 100;
 const submissionStatusSet = new Set(Object.values(SubmissionStatus));
 
 function resolveJwtSecret(): string {
@@ -317,6 +318,14 @@ function parseNumber(value: unknown): number | null {
 function parsePositiveInt(value: unknown): number | null {
     const parsed = parseNumber(value);
     if (parsed === null || !Number.isInteger(parsed) || parsed <= 0) {
+        return null;
+    }
+    return parsed;
+}
+
+function parseNonNegativeInt(value: unknown): number | null {
+    const parsed = parseNumber(value);
+    if (parsed === null || !Number.isInteger(parsed) || parsed < 0) {
         return null;
     }
     return parsed;
@@ -1109,6 +1118,11 @@ app.post(
         const sampleOutput = String(req.body?.sampleOutput ?? "");
         const timeLimitMs = parsePositiveInt(req.body?.timeLimitMs);
         const memoryLimitMb = parsePositiveInt(req.body?.memoryLimitMb);
+        const scoreRaw = req.body?.score;
+        const scoreInput =
+            scoreRaw === undefined || scoreRaw === null
+                ? null
+                : parseNonNegativeInt(scoreRaw);
         const contestId = parsePositiveInt(req.body?.contestId);
         const submissionType = parseSubmissionType(req.body?.submissionType);
         const difficulty =
@@ -1123,6 +1137,15 @@ app.post(
 
         const hasGeneratorCode = generatorCode.trim().length > 0;
         const hasSolutionCode = solutionCode.trim().length > 0;
+
+        if (
+            scoreRaw !== undefined &&
+            scoreRaw !== null &&
+            scoreInput === null
+        ) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
 
         if (submissionType === "CODE") {
             if (
@@ -1167,6 +1190,8 @@ app.post(
             return;
         }
 
+        const score = scoreInput ?? defaultScore;
+
         let problem = await prisma.problem.create({
             data: {
                 title,
@@ -1174,6 +1199,7 @@ app.post(
                 sampleInput,
                 sampleOutput,
                 difficulty,
+                score,
                 timeLimitMs,
                 memoryLimitMb,
                 contestId: contestId ?? null,
@@ -1233,6 +1259,11 @@ app.put(
         const sampleOutput = String(req.body?.sampleOutput ?? "");
         const timeLimitMs = parsePositiveInt(req.body?.timeLimitMs);
         const memoryLimitMb = parsePositiveInt(req.body?.memoryLimitMb);
+        const scoreRaw = req.body?.score;
+        const scoreInput =
+            scoreRaw === undefined || scoreRaw === null
+                ? null
+                : parseNonNegativeInt(scoreRaw);
         const contestId = parsePositiveInt(req.body?.contestId);
         const submissionType = parseSubmissionType(req.body?.submissionType);
         const difficultyInput = parseDifficultyInput(req.body?.difficulty);
@@ -1246,6 +1277,15 @@ app.put(
 
         const hasGeneratorCode = generatorCode.trim().length > 0;
         const hasSolutionCode = solutionCode.trim().length > 0;
+
+        if (
+            scoreRaw !== undefined &&
+            scoreRaw !== null &&
+            scoreInput === null
+        ) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
 
         if (submissionType === "CODE") {
             if (
@@ -1315,6 +1355,7 @@ app.put(
                 sampleInput,
                 sampleOutput,
                 difficulty: difficultyInput ?? existing.difficulty,
+                score: scoreInput ?? existing.score,
                 timeLimitMs,
                 memoryLimitMb,
                 contestId: contestId ?? null,
@@ -1691,6 +1732,87 @@ app.get(
     GROUP BY p.id, p.title
     ORDER BY accepted DESC, total DESC, p.title ASC
   `;
+
+        res.json({ rows });
+    }
+);
+
+app.get(
+    "/api/admin/leaderboard",
+    requireAuth,
+    requireAdminRead,
+    async (req, res) => {
+        const contestId = parsePositiveInt(req.query.contestId);
+        if (!contestId) {
+            res.status(400).json({ message: "잘못된 contestId입니다." });
+            return;
+        }
+
+        const contest = await prisma.contest.findUnique({
+            where: { id: contestId },
+            select: { id: true },
+        });
+        if (!contest) {
+            res.status(404).json({ message: "대회를 찾을 수 없습니다." });
+            return;
+        }
+
+        const rows = await prisma.$queryRaw<
+            Array<{
+                rank: number;
+                id: number;
+                username: string;
+                score: number;
+                wrongs: number;
+            }>
+        >`
+      WITH participants AS (
+        SELECT DISTINCT s."userId"
+        FROM "Submission" s
+        WHERE s."contestId" = ${contestId}
+      ),
+      accepted AS (
+        SELECT DISTINCT s."userId", s."problemId"
+        FROM "Submission" s
+        WHERE s."contestId" = ${contestId}
+          AND s.status = 'ACCEPTED'
+      ),
+      scores AS (
+        SELECT a."userId", SUM(p.score)::int AS score
+        FROM accepted a
+        JOIN "Problem" p ON p.id = a."problemId"
+        GROUP BY a."userId"
+      ),
+      wrongs AS (
+        SELECT s."userId", COUNT(*)::int AS wrongs
+        FROM "Submission" s
+        WHERE s."contestId" = ${contestId}
+          AND s.status IN (
+            'WRONG_ANSWER',
+            'COMPILE_ERROR',
+            'RUNTIME_ERROR',
+            'TIME_LIMIT_EXCEEDED',
+            'MEMORY_LIMIT_EXCEEDED',
+            'PRESENTATION_ERROR'
+          )
+        GROUP BY s."userId"
+      )
+      SELECT
+        ROW_NUMBER() OVER (
+          ORDER BY COALESCE(scores.score, 0) DESC,
+                   COALESCE(wrongs.wrongs, 0) ASC,
+                   u.username ASC
+        )::int AS rank,
+        u.id,
+        u.username,
+        COALESCE(scores.score, 0)::int AS score,
+        COALESCE(wrongs.wrongs, 0)::int AS wrongs
+      FROM participants
+      JOIN "User" u ON u.id = participants."userId"
+      LEFT JOIN scores ON scores."userId" = u.id
+      LEFT JOIN wrongs ON wrongs."userId" = u.id
+      ORDER BY score DESC, wrongs ASC, u.username ASC
+    `;
 
         res.json({ rows });
     }
