@@ -186,3 +186,10 @@ npx prisma studio --schema=prisma/schema.prisma
 -   워커 컨테이너는 Docker 소켓(`/var/run/docker.sock`)을 사용해 채점 컨테이너를 실행합니다.
 -   Windows 환경에서는 Docker Desktop의 드라이브 공유 설정을 확인하세요.
 -   GitHub 링크는 `client/.env`의 `VITE_GITHUB_URL`로 변경할 수 있습니다.
+
+## 실행 화면
+
+<img width="2559" height="1393" alt="image" src="https://github.com/user-attachments/assets/0b6cc11b-56d4-43dd-b854-f5542e70611c" />
+<img width="2559" height="1394" alt="image" src="https://github.com/user-attachments/assets/53e75d09-a663-4671-8d5f-c081ed165a5d" />
+
+
