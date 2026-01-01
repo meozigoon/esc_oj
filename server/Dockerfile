@@ -1,6 +1,7 @@
 FROM node:18-bullseye AS builder
 WORKDIR /app
 COPY package.json ./
+COPY package-lock.json ./
 COPY server/package.json server/
 COPY worker/package.json worker/
 COPY client/package.json client/
@@ -16,5 +17,5 @@ COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/server/dist /app/server/dist
 COPY server/package.json /app/server/package.json
 COPY prisma /app/prisma
-EXPOSE 4000
+EXPOSE 3000
 CMD ["node", "server/dist/index.js"]

@@ -536,7 +536,7 @@ app.get("/api/problems/:id", async (req, res) => {
         return;
     }
     const statementMd = await readTextFile(problem.statementPath);
-    const { statementPath, ...rest } = problem;
+    const { statementPath: _statementPath, ...rest } = problem;
     res.json({ problem: { ...rest, statementMd } });
 });
 
@@ -582,7 +582,7 @@ app.post(
             language = parsed;
         }
 
-        let contestId: number | null =
+        const contestId: number | null =
             contestIdInput ?? problem.contestId ?? null;
         if (problem.contestId && contestId && contestId !== problem.contestId) {
             res.status(400).json({ message: "대회 정보가 일치하지 않습니다." });
@@ -1073,7 +1073,7 @@ app.get(
         const withStatements = await Promise.all(
             problems.map(async (problem) => {
                 const statementMd = await readTextFile(problem.statementPath);
-                const { statementPath, ...rest } = problem;
+                const { statementPath: _statementPath, ...rest } = problem;
                 return { ...rest, statementMd };
             })
         );
@@ -1102,7 +1102,7 @@ app.get(
         }
 
         const statementMd = await readTextFile(problem.statementPath);
-        const { statementPath, ...rest } = problem;
+        const { statementPath: _statementPath, ...rest } = problem;
         res.json({ problem: { ...rest, statementMd } });
     }
 );
@@ -1836,7 +1836,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     res.status(500).json({ message: "서버 오류가 발생했습니다." });
 });
 
-const port = Number(process.env.PORT ?? 3000);
+const port = parsePositiveInt(process.env.PORT) ?? 3000;
 app.listen(port, () => {
     console.log(`Server listening on ${port}`);
 });

@@ -22,7 +22,7 @@ module.exports = {
         "react/react-in-jsx-scope": "off",
         "@typescript-eslint/no-unused-vars": [
             "error",
-            { argsIgnorePattern: "^_" },
+            { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
         ],
     },
 };

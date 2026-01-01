@@ -40,18 +40,19 @@ export default function SubmissionDetailPage() {
         fetchSubmission();
     }, [fetchSubmission]);
 
+    const shouldPoll =
+        submission !== null &&
+        ["PENDING", "RUNNING"].includes(submission.status);
+
     useEffect(() => {
-        if (
-            !submission ||
-            !["PENDING", "RUNNING"].includes(submission.status)
-        ) {
+        if (!shouldPoll) {
             return;
         }
         const timer = setInterval(() => {
             fetchSubmission();
         }, 1000);
         return () => clearInterval(timer);
-    }, [fetchSubmission, submission?.status]);
+    }, [fetchSubmission, shouldPoll]);
 
     const handleEdit = () => {
         if (!submission?.problem?.id) {

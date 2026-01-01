@@ -1,6 +1,7 @@
 FROM node:18-bullseye AS builder
 WORKDIR /app
 COPY package.json ./
+COPY package-lock.json ./
 COPY server/package.json server/
 COPY worker/package.json worker/
 COPY client/package.json client/

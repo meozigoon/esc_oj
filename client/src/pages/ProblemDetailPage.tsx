@@ -123,6 +123,8 @@ export default function ProblemDetailPage() {
             .then((data) => {
                 const submission = data.submission;
                 if (submission.problem && submission.problem.id !== problemId) {
+                    setLoadedSubmission(null);
+                    lastLoadedSubmissionId.current = submissionId;
                     setSubmitError("다른 문제의 제출입니다.");
                     return;
                 }
