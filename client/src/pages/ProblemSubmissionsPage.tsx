@@ -25,12 +25,13 @@ import StatusChip from "../components/StatusChip";
 export default function ProblemSubmissionsPage() {
     const { id } = useParams();
     const problemId = Number(id);
+    const isValidProblemId = Number.isFinite(problemId) && problemId > 0;
     const [problem, setProblem] = useState<Problem | null>(null);
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     const fetchProblem = useCallback(() => {
-        if (!problemId) {
+        if (!isValidProblemId) {
             return;
         }
         setError(null);
@@ -43,10 +44,10 @@ export default function ProblemSubmissionsPage() {
                         : "문제를 불러오지 못했습니다."
                 )
             );
-    }, [problemId]);
+    }, [problemId, isValidProblemId]);
 
     const fetchSubmissions = useCallback(() => {
-        if (!problemId) {
+        if (!isValidProblemId) {
             return;
         }
         setError(null);
@@ -61,12 +62,18 @@ export default function ProblemSubmissionsPage() {
                         : "제출을 불러오지 못했습니다."
                 )
             );
-    }, [problemId]);
+    }, [problemId, isValidProblemId]);
 
     useEffect(() => {
+        if (!isValidProblemId) {
+            setProblem(null);
+            setSubmissions([]);
+            setError("잘못된 problemId입니다.");
+            return;
+        }
         fetchProblem();
         fetchSubmissions();
-    }, [fetchProblem, fetchSubmissions]);
+    }, [fetchProblem, fetchSubmissions, isValidProblemId]);
 
     const hasRunning = useMemo(
         () =>

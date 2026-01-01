@@ -25,6 +25,7 @@ function toLocalInput(value: string) {
 export default function AdminContestDetailPage() {
     const { id } = useParams();
     const contestId = Number(id);
+    const isValidContestId = Number.isFinite(contestId) && contestId > 0;
     const { user } = useAuth();
     const isReadOnly = user?.role === "viewer";
     const [contest, setContest] = useState<Contest | null>(null);
@@ -36,7 +37,10 @@ export default function AdminContestDetailPage() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (!contestId) {
+        if (!isValidContestId) {
+            setContest(null);
+            setProblems([]);
+            setError("잘못된 contestId입니다.");
             return;
         }
         setError(null);
@@ -60,7 +64,7 @@ export default function AdminContestDetailPage() {
         )
             .then((data) => setProblems(data.problems))
             .catch(() => undefined);
-    }, [contestId]);
+    }, [contestId, isValidContestId]);
 
     const handleSave = async () => {
         if (!contestId) {

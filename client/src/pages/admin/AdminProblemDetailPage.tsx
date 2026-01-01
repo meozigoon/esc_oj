@@ -59,6 +59,7 @@ const hasGeneratedTests = (value: Problem) => {
 export default function AdminProblemDetailPage() {
     const { id } = useParams();
     const problemId = Number(id);
+    const isValidProblemId = Number.isFinite(problemId) && problemId > 0;
     const { user } = useAuth();
     const isReadOnly = user?.role === "viewer";
     const [problem, setProblem] = useState<Problem | null>(null);
@@ -72,7 +73,10 @@ export default function AdminProblemDetailPage() {
     const navigate = useNavigate();
 
     const fetchAll = useCallback(() => {
-        if (!problemId) {
+        if (!isValidProblemId) {
+            setProblem(null);
+            setTestcases([]);
+            setError("잘못된 problemId입니다.");
             return;
         }
         setError(null);
@@ -108,7 +112,7 @@ export default function AdminProblemDetailPage() {
         apiFetch<{ contests: Contest[] }>("/api/contests")
             .then((data) => setContests(data.contests))
             .catch(() => undefined);
-    }, [problemId]);
+    }, [problemId, isValidProblemId]);
 
     useEffect(() => {
         fetchAll();
@@ -198,7 +202,7 @@ export default function AdminProblemDetailPage() {
     };
 
     const handleCreateTestcase = async () => {
-        if (!problemId) {
+        if (!isValidProblemId) {
             return;
         }
         if (isReadOnly) {
@@ -231,6 +235,9 @@ export default function AdminProblemDetailPage() {
         if (isReadOnly) {
             return;
         }
+        if (!isValidProblemId) {
+            return;
+        }
         setError(null);
         try {
             await apiFetch(
@@ -256,6 +263,9 @@ export default function AdminProblemDetailPage() {
 
     const handleDeleteTestcase = async (testcaseId: number) => {
         if (isReadOnly) {
+            return;
+        }
+        if (!isValidProblemId) {
             return;
         }
         if (!confirm("테스트케이스를 삭제할까요?")) {

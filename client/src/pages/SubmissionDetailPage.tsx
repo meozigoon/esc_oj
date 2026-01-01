@@ -13,12 +13,16 @@ import StatusChip from "../components/StatusChip";
 export default function SubmissionDetailPage() {
     const { id } = useParams();
     const submissionId = Number(id);
+    const isValidSubmissionId =
+        Number.isFinite(submissionId) && submissionId > 0;
     const [submission, setSubmission] = useState<Submission | null>(null);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
 
     const fetchSubmission = useCallback(async () => {
-        if (!submissionId) {
+        if (!isValidSubmissionId) {
+            setSubmission(null);
+            setError("잘못된 submissionId입니다.");
             return;
         }
         setError(null);
@@ -34,7 +38,7 @@ export default function SubmissionDetailPage() {
                     : "제출을 불러오지 못했습니다."
             );
         }
-    }, [submissionId]);
+    }, [submissionId, isValidSubmissionId]);
 
     useEffect(() => {
         fetchSubmission();

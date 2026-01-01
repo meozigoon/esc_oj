@@ -18,12 +18,16 @@ import DifficultyBadge from "../components/DifficultyBadge";
 export default function ContestDetailPage() {
     const { id } = useParams();
     const contestId = Number(id);
+    const isValidContestId = Number.isFinite(contestId) && contestId > 0;
     const [contest, setContest] = useState<Contest | null>(null);
     const [problems, setProblems] = useState<ProblemSummary[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!contestId) {
+        if (!isValidContestId) {
+            setContest(null);
+            setProblems([]);
+            setError("잘못된 contestId입니다.");
             return;
         }
         setError(null);
@@ -48,7 +52,7 @@ export default function ContestDetailPage() {
                         : "문제를 불러오지 못했습니다."
                 )
             );
-    }, [contestId]);
+    }, [contestId, isValidContestId]);
 
     const canSubmit = useMemo(() => {
         if (!contest) {

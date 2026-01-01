@@ -31,6 +31,7 @@ import {
 } from "../api";
 import { useAuth } from "../auth";
 import DifficultyBadge from "../components/DifficultyBadge";
+import { useThemeMode } from "../themeMode";
 
 const languageOptions: Array<{
     value: Language;
@@ -64,6 +65,7 @@ const languageNotes: Record<Language, string[]> = {
 export default function ProblemDetailPage() {
     const { id } = useParams();
     const problemId = Number(id);
+    const isValidProblemId = Number.isFinite(problemId) && problemId > 0;
     const [problem, setProblem] = useState<Problem | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [language, setLanguage] = useState<Language>("CPP17");
@@ -74,13 +76,16 @@ export default function ProblemDetailPage() {
         null
     );
     const { user } = useAuth();
+    const { mode } = useThemeMode();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const lastLoadedSubmissionId = useRef<number | null>(null);
     const isTextProblem = problem?.submissionType === "TEXT";
 
     useEffect(() => {
-        if (!problemId) {
+        if (!isValidProblemId) {
+            setProblem(null);
+            setError("잘못된 problemId입니다.");
             return;
         }
         setError(null);
@@ -93,7 +98,7 @@ export default function ProblemDetailPage() {
                         : "문제를 불러오지 못했습니다."
                 )
             );
-    }, [problemId]);
+    }, [problemId, isValidProblemId]);
 
     useEffect(() => {
         setCode("");
@@ -103,6 +108,11 @@ export default function ProblemDetailPage() {
     }, [problemId]);
 
     useEffect(() => {
+        if (!isValidProblemId) {
+            setLoadedSubmission(null);
+            lastLoadedSubmissionId.current = null;
+            return;
+        }
         const submissionId = Number(searchParams.get("submissionId"));
         if (!Number.isFinite(submissionId) || submissionId <= 0) {
             lastLoadedSubmissionId.current = null;
@@ -142,7 +152,7 @@ export default function ProblemDetailPage() {
                         : "제출 코드를 불러오지 못했습니다."
                 )
             );
-    }, [problemId, searchParams, user, isTextProblem]);
+    }, [problemId, searchParams, user, isTextProblem, isValidProblemId]);
 
     const canSubmit = useMemo(() => {
         if (!problem?.contest) {
@@ -191,6 +201,7 @@ export default function ProblemDetailPage() {
     const languageConfig =
         languageOptions.find((option) => option.value === language) ??
         languageOptions[1];
+    const editorTheme = mode === "dark" ? "vs-dark" : "vs";
 
     if (!problem) {
         return <Typography>{error ?? "Loading..."}</Typography>;
@@ -451,7 +462,7 @@ export default function ProblemDetailPage() {
                                             onChange={(value) =>
                                                 setCode(value ?? "")
                                             }
-                                            theme="vs"
+                                            theme={editorTheme}
                                             options={{
                                                 fontSize: 14,
                                                 minimap: { enabled: false },
