@@ -10,6 +10,15 @@ export type JudgeResult = {
     failedTestcaseOrd?: number | null;
 };
 
+export type RunResult = {
+    status: SubmissionStatus;
+    message: string;
+    stdout: string;
+    stderr: string;
+    runtimeMs?: number | null;
+    memoryKb?: number | null;
+};
+
 type ExecResult = {
     code: number;
     stdout: string;
@@ -427,6 +436,150 @@ async function runProgram(options: {
     );
     const { memoryKb, cleanedStderr } = extractTimeStats(result.stderr);
     return { ...result, stderr: cleanedStderr, memoryKb };
+}
+
+export async function runSubmission(options: {
+    runId: number;
+    language: Language;
+    code: string;
+    problem: Problem;
+    input: string;
+    image: string;
+}): Promise<RunResult> {
+    if (!languageConfigs[options.language]) {
+        return {
+            status: SubmissionStatus.SYSTEM_ERROR,
+            message: "지원하지 않는 언어입니다.",
+            stdout: "",
+            stderr: "",
+        };
+    }
+    if (options.problem.submissionType === "TEXT") {
+        return {
+            status: SubmissionStatus.SYSTEM_ERROR,
+            message: "텍스트 제출 문제는 실행할 수 없습니다.",
+            stdout: "",
+            stderr: "",
+        };
+    }
+
+    const timeLimitMs =
+        Number.isFinite(options.problem.timeLimitMs) &&
+        options.problem.timeLimitMs > 0
+            ? options.problem.timeLimitMs
+            : 1000;
+    const memoryLimitMb = Math.max(64, options.problem.memoryLimitMb || 256);
+    const compileTimeoutMs = 10000;
+
+    let program: PreparedProgram | null = null;
+
+    try {
+        const prepared = await prepareProgram({
+            submissionId: options.runId,
+            label: "run",
+            language: options.language,
+            code: options.code,
+            image: options.image,
+            memoryLimitMb,
+            compileTimeoutMs,
+        });
+
+        if ("error" in prepared) {
+            const { result, stage } = prepared.error;
+            if (stage === "compile") {
+                if (result.timedOut || result.code === 124) {
+                    return {
+                        status: SubmissionStatus.TIME_LIMIT_EXCEEDED,
+                        message: "컴파일 시간 초과",
+                        stdout: result.stdout,
+                        stderr: result.stderr,
+                    };
+                }
+                if (result.code === 137) {
+                    return {
+                        status: SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
+                        message: "컴파일 메모리 초과",
+                        stdout: result.stdout,
+                        stderr: result.stderr,
+                    };
+                }
+                return {
+                    status: SubmissionStatus.COMPILE_ERROR,
+                    message: "컴파일 에러",
+                    stdout: result.stdout,
+                    stderr: result.stderr || result.stdout,
+                };
+            }
+            return {
+                status: SubmissionStatus.SYSTEM_ERROR,
+                message: "시스템 오류",
+                stdout: result.stdout,
+                stderr: formatExecError(result),
+            };
+        }
+
+        program = prepared.program;
+        const start = Date.now();
+        const runResult = await runProgram({
+            program,
+            image: options.image,
+            input: options.input,
+            timeLimitMs,
+            memoryLimitMb,
+        });
+        const runtimeMs = Date.now() - start;
+
+        if (runResult.timedOut || runResult.code === 124) {
+            return {
+                status: SubmissionStatus.TIME_LIMIT_EXCEEDED,
+                message: "시간 초과",
+                stdout: runResult.stdout,
+                stderr: runResult.stderr,
+                runtimeMs,
+                memoryKb: runResult.memoryKb ?? null,
+            };
+        }
+        if (runResult.code === 137) {
+            return {
+                status: SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
+                message: "메모리 초과",
+                stdout: runResult.stdout,
+                stderr: runResult.stderr,
+                runtimeMs,
+                memoryKb: runResult.memoryKb ?? null,
+            };
+        }
+        if (runResult.code !== 0) {
+            return {
+                status: SubmissionStatus.RUNTIME_ERROR,
+                message: "런타임 에러",
+                stdout: runResult.stdout,
+                stderr: runResult.stderr || formatExecError(runResult),
+                runtimeMs,
+                memoryKb: runResult.memoryKb ?? null,
+            };
+        }
+
+        return {
+            status: SubmissionStatus.ACCEPTED,
+            message: "실행 완료",
+            stdout: runResult.stdout,
+            stderr: runResult.stderr,
+            runtimeMs,
+            memoryKb: runResult.memoryKb ?? null,
+        };
+    } catch (error) {
+        return {
+            status: SubmissionStatus.SYSTEM_ERROR,
+            message: "시스템 오류",
+            stdout: "",
+            stderr: error instanceof Error ? error.message : "Unknown error",
+        };
+    } finally {
+        if (program) {
+            await removeVolume(program.volumeName);
+        }
+    }
 }
 
 export async function judgeSubmission(options: {

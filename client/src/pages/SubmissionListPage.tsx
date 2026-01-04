@@ -94,10 +94,18 @@ export default function SubmissionListPage() {
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        {formatDuration(submission.runtimeMs)}
+                                        {submission.status === "ACCEPTED"
+                                            ? formatDuration(
+                                                  submission.runtimeMs
+                                              )
+                                            : "-"}
                                     </TableCell>
                                     <TableCell>
-                                        {formatMemory(submission.memoryKb)}
+                                        {submission.status === "ACCEPTED"
+                                            ? formatMemory(
+                                                  submission.memoryKb
+                                              )
+                                            : "-"}
                                     </TableCell>
                                     <TableCell>
                                         {formatDateTime(submission.createdAt)}

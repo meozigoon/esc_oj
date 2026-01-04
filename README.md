@@ -191,5 +191,3 @@ npx prisma studio --schema=prisma/schema.prisma
 
 <img width="2559" height="1393" alt="image" src="https://github.com/user-attachments/assets/0b6cc11b-56d4-43dd-b854-f5542e70611c" />
 <img width="2559" height="1394" alt="image" src="https://github.com/user-attachments/assets/53e75d09-a663-4671-8d5f-c081ed165a5d" />
-
-

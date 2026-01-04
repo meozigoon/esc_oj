@@ -3,10 +3,15 @@ import { Worker } from "bullmq";
 import fs from "fs/promises";
 import IORedis from "ioredis";
 import path from "path";
-import { PrismaClient, SubmissionStatus } from "@prisma/client";
-import { judgeSubmission } from "./judge";
+import { Language, PrismaClient, SubmissionStatus } from "@prisma/client";
+import { judgeSubmission, runSubmission } from "./judge";
 
-dotenv.config();
+const repoRoot = path.resolve(__dirname, "..", "..");
+const rootEnvPath = path.resolve(repoRoot, ".env");
+const envResult = dotenv.config({ path: rootEnvPath });
+if (envResult.error) {
+    dotenv.config();
+}
 
 const prisma = new PrismaClient();
 const redis = new IORedis(process.env.REDIS_URL ?? "redis://localhost:6379", {
@@ -17,9 +22,16 @@ const concurrencyRaw = Number(process.env.WORKER_CONCURRENCY ?? 4);
 const concurrency =
     Number.isFinite(concurrencyRaw) && concurrencyRaw > 0 ? concurrencyRaw : 4;
 const judgeImage = process.env.JUDGE_IMAGE ?? "oj-runner:latest";
-const dataDir = path.resolve(
-    process.env.DATA_DIR ?? path.join(process.cwd(), "..", "data")
-);
+const dataDir = resolveDataDir(process.env.DATA_DIR);
+
+function resolveDataDir(value?: string): string {
+    if (!value) {
+        return path.resolve(repoRoot, "data");
+    }
+    return path.isAbsolute(value)
+        ? value
+        : path.resolve(repoRoot, value);
+}
 
 function resolveDataPath(relativePath: string): string {
     const resolved = path.resolve(dataDir, relativePath);
@@ -37,6 +49,53 @@ async function readTextFile(relativePath: string): Promise<string> {
 const worker = new Worker(
     queueName,
     async (job) => {
+        if (job.name === "run") {
+            const problemId = Number(job.data?.problemId);
+            const languageRaw = job.data?.language;
+            const code = String(job.data?.code ?? "");
+            const input = String(job.data?.input ?? "");
+
+            if (
+                !Number.isFinite(problemId) ||
+                problemId <= 0 ||
+                typeof languageRaw !== "string" ||
+                code.trim().length === 0
+            ) {
+                return {
+                    status: SubmissionStatus.SYSTEM_ERROR,
+                    message: "입력값을 확인해 주세요.",
+                    stdout: "",
+                    stderr: "",
+                };
+            }
+
+            const language = languageRaw as Language;
+            const problem = await prisma.problem.findUnique({
+                where: { id: problemId },
+            });
+
+            if (!problem) {
+                return {
+                    status: SubmissionStatus.SYSTEM_ERROR,
+                    message: "문제를 찾을 수 없습니다.",
+                    stdout: "",
+                    stderr: "",
+                };
+            }
+
+            const runIdRaw = Number(job.id);
+            const runId = Number.isFinite(runIdRaw) ? runIdRaw : Date.now();
+
+            return runSubmission({
+                runId,
+                language,
+                code,
+                problem,
+                input,
+                image: judgeImage,
+            });
+        }
+
         const submissionId = Number(job.data?.submissionId);
         if (!Number.isFinite(submissionId) || submissionId <= 0) {
             return;

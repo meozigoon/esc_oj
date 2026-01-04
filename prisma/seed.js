@@ -4,13 +4,19 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const prisma = new PrismaClient();
-const dataDir = path.resolve(
-    process.env.DATA_DIR || path.join(process.cwd(), "data")
-);
+const repoRoot = path.resolve(__dirname, "..");
+const dataDir = resolveDataDir(process.env.DATA_DIR);
 const defaultAdminPassword = "admin1234";
 
 function toPosixPath(...segments) {
     return path.posix.join(...segments);
+}
+
+function resolveDataDir(value) {
+    if (!value) {
+        return path.resolve(repoRoot, "data");
+    }
+    return path.isAbsolute(value) ? value : path.resolve(repoRoot, value);
 }
 
 async function ensureDir(dirPath) {

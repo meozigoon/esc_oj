@@ -8,7 +8,7 @@ import express, { NextFunction, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { Queue } from "bullmq";
+import { Queue, QueueEvents } from "bullmq";
 import IORedis from "ioredis";
 import {
     Language,
@@ -20,7 +20,12 @@ import {
     Prisma,
 } from "@prisma/client";
 
-dotenv.config();
+const repoRoot = path.resolve(__dirname, "..", "..");
+const rootEnvPath = path.resolve(repoRoot, ".env");
+const envResult = dotenv.config({ path: rootEnvPath });
+if (envResult.error) {
+    dotenv.config();
+}
 
 const prisma = new PrismaClient();
 const redis = new IORedis(process.env.REDIS_URL ?? "redis://localhost:6379", {
@@ -28,9 +33,13 @@ const redis = new IORedis(process.env.REDIS_URL ?? "redis://localhost:6379", {
 });
 const queueName = process.env.QUEUE_NAME ?? "submission-queue";
 const queue = new Queue(queueName, { connection: redis });
-const dataDir = path.resolve(
-    process.env.DATA_DIR ?? path.join(process.cwd(), "..", "data")
+const redisEvents = new IORedis(
+    process.env.REDIS_URL ?? "redis://localhost:6379",
+    { maxRetriesPerRequest: null }
 );
+const queueEvents = new QueueEvents(queueName, { connection: redisEvents });
+const queueEventsReady = queueEvents.waitUntilReady();
+const dataDir = resolveDataDir(process.env.DATA_DIR);
 const isProd = process.env.NODE_ENV === "production";
 
 const app = express();
@@ -132,6 +141,15 @@ function resolveJwtSecret(): string {
         );
     }
     return secret;
+}
+
+function resolveDataDir(value?: string): string {
+    if (!value) {
+        return path.resolve(repoRoot, "data");
+    }
+    return path.isAbsolute(value)
+        ? value
+        : path.resolve(repoRoot, value);
 }
 
 function toPosixPath(...segments: string[]): string {
@@ -539,6 +557,82 @@ app.get("/api/problems/:id", async (req, res) => {
     const { statementPath: _statementPath, ...rest } = problem;
     res.json({ problem: { ...rest, statementMd } });
 });
+
+app.post(
+    "/api/problems/:id/run",
+    requireAuth,
+    submitLimiter,
+    async (req: AuthRequest, res) => {
+        const problemId = parsePositiveInt(req.params.id);
+        const languageInput = String(req.body?.language ?? "").trim();
+        const code = String(req.body?.code ?? "");
+        const input = String(req.body?.input ?? "");
+
+        if (!problemId || code.trim().length === 0) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
+
+        const problem = await prisma.problem.findUnique({
+            where: { id: problemId },
+        });
+        if (!problem) {
+            res.status(404).json({ message: "문제를 찾을 수 없습니다." });
+            return;
+        }
+        if (problem.submissionType === "TEXT") {
+            res.status(400).json({
+                message: "텍스트 제출 문제는 실행할 수 없습니다.",
+            });
+            return;
+        }
+
+        const language = parseLanguageInput(languageInput);
+        if (!language) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
+
+        if (problem.contestId) {
+            const contest = await prisma.contest.findUnique({
+                where: { id: problem.contestId },
+            });
+            if (!contest) {
+                res.status(404).json({ message: "대회를 찾을 수 없습니다." });
+                return;
+            }
+            const now = new Date();
+            if (now < contest.startAt || now > contest.endAt) {
+                res.status(403).json({ message: "대회 시간이 아닙니다." });
+                return;
+            }
+        }
+
+        const job = await queue.add(
+            "run",
+            {
+                problemId: problem.id,
+                language,
+                code,
+                input,
+            },
+            { removeOnComplete: 100, removeOnFail: 100 }
+        );
+
+        try {
+            await queueEventsReady;
+            const result = await job.waitUntilFinished(queueEvents, 20000);
+            res.json({ result });
+        } catch (error) {
+            res.status(500).json({
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "실행에 실패했습니다.",
+            });
+        }
+    }
+);
 
 app.post(
     "/api/submissions",
@@ -1848,7 +1942,17 @@ async function shutdown() {
         // ignore shutdown errors
     }
     try {
+        await queueEvents.close();
+    } catch {
+        // ignore shutdown errors
+    }
+    try {
         await redis.quit();
+    } catch {
+        // ignore shutdown errors
+    }
+    try {
+        await redisEvents.quit();
     } catch {
         // ignore shutdown errors
     }

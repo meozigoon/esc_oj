@@ -13,19 +13,21 @@
     TextField,
     Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import {
     Link,
     useNavigate,
     useParams,
     useSearchParams,
 } from "react-router-dom";
-import Editor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
 import {
     apiFetch,
+    formatDuration,
+    formatMemory,
     Language,
     Problem,
+    RunResult,
     Submission,
     SubmissionStatus,
 } from "../api";
@@ -45,6 +47,8 @@ const languageOptions: Array<{
     { value: "CS", label: "C#", monaco: "csharp" },
 ];
 
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+
 const errorStatuses = new Set<SubmissionStatus>([
     "COMPILE_ERROR",
     "RUNTIME_ERROR",
@@ -61,6 +65,7 @@ const languageNotes: Record<Language, string[]> = {
     PYTHON3: ["런타임: Python 3"],
     CS: ["컴파일러/런타임: Mono (mcs/mono)", "클래스 이름: MainClass"],
 };
+const codeFontFamily = "Consolas, 'Courier New', monospace";
 
 export default function ProblemDetailPage() {
     const { id } = useParams();
@@ -72,6 +77,10 @@ export default function ProblemDetailPage() {
     const [code, setCode] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [running, setRunning] = useState(false);
+    const [runInput, setRunInput] = useState("");
+    const [runResult, setRunResult] = useState<RunResult | null>(null);
+    const [runError, setRunError] = useState<string | null>(null);
     const [loadedSubmission, setLoadedSubmission] = useState<Submission | null>(
         null
     );
@@ -103,9 +112,18 @@ export default function ProblemDetailPage() {
     useEffect(() => {
         setCode("");
         setSubmitError(null);
+        setRunInput("");
+        setRunResult(null);
+        setRunError(null);
         setLoadedSubmission(null);
         lastLoadedSubmissionId.current = null;
     }, [problemId]);
+
+    useEffect(() => {
+        if (problem) {
+            setRunInput(problem.sampleInput ?? "");
+        }
+    }, [problem]);
 
     useEffect(() => {
         if (!isValidProblemId) {
@@ -168,6 +186,10 @@ export default function ProblemDetailPage() {
         if (!problem) {
             return;
         }
+        if (code.trim().length === 0) {
+            setSubmitError("코드를 입력해 주세요.");
+            return;
+        }
         setSubmitting(true);
         setSubmitError(null);
         try {
@@ -198,10 +220,86 @@ export default function ProblemDetailPage() {
         }
     };
 
+    const handleRun = async () => {
+        if (!problem || isTextProblem) {
+            return;
+        }
+        if (code.trim().length === 0) {
+            setRunError(null);
+            setRunResult({
+                status: "SYSTEM_ERROR",
+                message: "코드를 입력해 주세요.",
+                stdout: "",
+                stderr: "",
+            });
+            return;
+        }
+        setRunning(true);
+        setRunError(null);
+        setRunResult(null);
+        try {
+            const data = await apiFetch<{ result: RunResult }>(
+                `/api/problems/${problem.id}/run`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        language,
+                        code,
+                        input: runInput,
+                    }),
+                }
+            );
+            setRunResult(data.result);
+        } catch (err) {
+            setRunError(
+                err instanceof Error ? err.message : "실행에 실패했습니다."
+            );
+        } finally {
+            setRunning(false);
+        }
+    };
+
     const languageConfig =
         languageOptions.find((option) => option.value === language) ??
         languageOptions[1];
     const editorTheme = mode === "dark" ? "vs-dark" : "vs";
+
+    const runOutput = useMemo(() => {
+        if (running) {
+            return "실행 중...";
+        }
+        if (!runResult) {
+            return "실행 버튼을 누르면 결과가 표시됩니다.";
+        }
+        const lines: string[] = [`상태: ${runResult.message}`];
+        const isAccepted = runResult.status === "ACCEPTED";
+        if (
+            isAccepted &&
+            runResult.runtimeMs !== null &&
+            runResult.runtimeMs !== undefined
+        ) {
+            lines.push(`시간: ${formatDuration(runResult.runtimeMs)}`);
+        }
+        if (
+            isAccepted &&
+            runResult.memoryKb !== null &&
+            runResult.memoryKb !== undefined
+        ) {
+            lines.push(`메모리: ${formatMemory(runResult.memoryKb)}`);
+        }
+        const stdout = runResult.stdout.trimEnd();
+        const stderr = runResult.stderr.trimEnd();
+        if (stdout.length > 0) {
+            lines.push("", stdout);
+        }
+        if (stderr.length > 0) {
+            lines.push("", "[stderr]", stderr);
+        }
+        if (stdout.length === 0 && stderr.length === 0) {
+            lines.push("", "출력이 없습니다.");
+        }
+        return lines.join("\n");
+    }, [runResult, running]);
 
     if (!problem) {
         return <Typography>{error ?? "Loading..."}</Typography>;
@@ -270,7 +368,8 @@ export default function ProblemDetailPage() {
                                                         backgroundColor:
                                                             "rgba(31, 122, 140, 0.08)",
                                                         borderRadius: 1,
-                                                        fontFamily: "monospace",
+                                                        fontFamily:
+                                                            codeFontFamily,
                                                     }}
                                                 >
                                                     {sampleInputValue}
@@ -292,7 +391,8 @@ export default function ProblemDetailPage() {
                                                         backgroundColor:
                                                             "rgba(244, 162, 97, 0.12)",
                                                         borderRadius: 1,
-                                                        fontFamily: "monospace",
+                                                        fontFamily:
+                                                            codeFontFamily,
                                                     }}
                                                 >
                                                     {sampleOutputValue}
@@ -455,25 +555,51 @@ export default function ProblemDetailPage() {
                                             border: "1px solid #e5e7eb",
                                         }}
                                     >
-                                        <Editor
-                                            height="420px"
-                                            language={languageConfig.monaco}
-                                            value={code}
-                                            onChange={(value) =>
-                                                setCode(value ?? "")
+                                        <Suspense
+                                            fallback={
+                                                <Box
+                                                    sx={{
+                                                        height: 420,
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        color: "text.secondary",
+                                                        fontSize: 14,
+                                                    }}
+                                                >
+                                                    에디터 로딩 중...
+                                                </Box>
                                             }
-                                            theme={editorTheme}
-                                            options={{
-                                                fontSize: 14,
-                                                minimap: { enabled: false },
-                                                scrollBeyondLastLine: false,
-                                            }}
-                                        />
+                                        >
+                                            <MonacoEditor
+                                                height="420px"
+                                                language={languageConfig.monaco}
+                                                value={code}
+                                                onChange={(value) =>
+                                                    setCode(value ?? "")
+                                                }
+                                                theme={editorTheme}
+                                                options={{
+                                                    fontSize: 14,
+                                                    fontFamily: codeFontFamily,
+                                                    minimap: {
+                                                        enabled: false,
+                                                    },
+                                                    scrollBeyondLastLine:
+                                                        false,
+                                                }}
+                                            />
+                                        </Suspense>
                                     </Box>
                                 )}
                                 {submitError && (
                                     <Typography color="error">
                                         {submitError}
+                                    </Typography>
+                                )}
+                                {runError && (
+                                    <Typography color="error">
+                                        {runError}
                                     </Typography>
                                 )}
                                 {!user && (
@@ -484,13 +610,75 @@ export default function ProblemDetailPage() {
                                         제출하려면 로그인해야 합니다.
                                     </Typography>
                                 )}
-                                <Button
-                                    variant="contained"
-                                    onClick={handleSubmit}
-                                    disabled={!user || !canSubmit || submitting}
+                                <Stack
+                                    direction="row"
+                                    spacing={2}
+                                    alignItems="center"
                                 >
-                                    제출하기
-                                </Button>
+                                    {!isTextProblem && (
+                                        <Button
+                                            variant="outlined"
+                                            onClick={handleRun}
+                                            disabled={
+                                                !user ||
+                                                !canSubmit ||
+                                                submitting ||
+                                                running ||
+                                                code.trim().length === 0
+                                            }
+                                        >
+                                            {running ? "실행 중..." : "실행"}
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="contained"
+                                        onClick={handleSubmit}
+                                        disabled={
+                                            !user ||
+                                            !canSubmit ||
+                                            submitting ||
+                                            code.trim().length === 0
+                                        }
+                                    >
+                                        제출하기
+                                    </Button>
+                                </Stack>
+                                {!isTextProblem && (
+                                    <Stack spacing={1.5}>
+                                        <Typography
+                                            variant="subtitle2"
+                                            fontWeight={600}
+                                        >
+                                            실행 터미널
+                                        </Typography>
+                                        <TextField
+                                            label="실행 입력"
+                                            value={runInput}
+                                            onChange={(e) =>
+                                                setRunInput(e.target.value)
+                                            }
+                                            multiline
+                                            minRows={4}
+                                        />
+                                        <Box
+                                            component="pre"
+                                            sx={{
+                                                borderRadius: 1,
+                                                border: "1px solid rgba(15, 23, 42, 0.12)",
+                                                backgroundColor:
+                                                    "rgba(15, 23, 42, 0.04)",
+                                                p: 2,
+                                                minHeight: 160,
+                                                fontFamily: codeFontFamily,
+                                                fontSize: 13,
+                                                whiteSpace: "pre-wrap",
+                                                overflowX: "auto",
+                                            }}
+                                        >
+                                            {runOutput}
+                                        </Box>
+                                    </Stack>
+                                )}
                             </Stack>
                         </CardContent>
                     </Card>

@@ -46,11 +46,18 @@ const quickLinks: QuickLink[] = [
 ];
 
 export default function HomePage() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const isAdminUser = user?.role === "admin" || user?.role === "viewer";
     const visibleLinks = quickLinks.filter(
         (link) => !link.requiresAdmin || isAdminUser
     );
+    const handleLogout = async () => {
+        try {
+            await logout();
+        } catch {
+            // ignore logout errors
+        }
+    };
 
     return (
         <Stack spacing={4}>
@@ -146,15 +153,13 @@ export default function HomePage() {
                     const isLoginRequired = link.requiresAuth && !user;
                     const isLoginLink = link.title === "로그인";
                     const isLoggedIn = Boolean(user);
+                    const isLogoutLink = isLoginLink && isLoggedIn;
 
                     let cta = link.cta;
                     let to = link.to;
-                    let disabled = false;
 
-                    if (isLoginLink && isLoggedIn) {
-                        cta = "로그인됨";
-                        to = "/contests";
-                        disabled = true;
+                    if (isLogoutLink) {
+                        cta = "로그아웃";
                     } else if (isAdminOnly) {
                         cta = "관리자 전용";
                         to = "/login";
@@ -183,10 +188,10 @@ export default function HomePage() {
                                         </Typography>
                                         <Box>
                                             <Button
-                                                component={Link}
-                                                to={to}
+                                                {...(isLogoutLink
+                                                    ? { onClick: handleLogout }
+                                                    : { component: Link, to })}
                                                 variant="outlined"
-                                                disabled={disabled}
                                             >
                                                 {cta}
                                             </Button>

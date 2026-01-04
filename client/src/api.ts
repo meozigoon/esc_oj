@@ -95,6 +95,15 @@ export type Submission = {
     user?: { id: number; username: string };
 };
 
+export type RunResult = {
+    status: SubmissionStatus;
+    message: string;
+    stdout: string;
+    stderr: string;
+    runtimeMs?: number | null;
+    memoryKb?: number | null;
+};
+
 export type AccessLog = {
     id: number;
     createdAt: string;

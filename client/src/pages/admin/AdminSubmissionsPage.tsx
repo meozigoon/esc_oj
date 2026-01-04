@@ -238,7 +238,11 @@ export default function AdminSubmissionsPage() {
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        {formatMemory(submission.memoryKb)}
+                                        {submission.status === "ACCEPTED"
+                                            ? formatMemory(
+                                                  submission.memoryKb
+                                              )
+                                            : "-"}
                                     </TableCell>
                                     <TableCell>
                                         {formatDateTime(submission.createdAt)}

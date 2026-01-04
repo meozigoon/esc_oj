@@ -10,7 +10,7 @@ import "./styles/global.css";
 import { devtoolsBanner } from "./devtoolsBanner";
 import { ThemeModeProvider } from "./themeMode";
 
-if (devtoolsBanner.trim()) {
+if (import.meta.env.DEV && devtoolsBanner.trim()) {
     console.log(devtoolsBanner);
 }
 

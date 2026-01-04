@@ -18,6 +18,7 @@ export default function SubmissionDetailPage() {
     const [submission, setSubmission] = useState<Submission | null>(null);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
+    const isAccepted = submission?.status === "ACCEPTED";
 
     const fetchSubmission = useCallback(async () => {
         if (!isValidSubmissionId) {
@@ -96,12 +97,16 @@ export default function SubmissionDetailPage() {
                     <Typography variant="body2" color="text.secondary">
                         제출 시각: {formatDateTime(submission.createdAt)}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        실행 시간: {formatDuration(submission.runtimeMs)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        메모리: {formatMemory(submission.memoryKb)}
-                    </Typography>
+                    {isAccepted && (
+                        <Typography variant="body2" color="text.secondary">
+                            실행 시간: {formatDuration(submission.runtimeMs)}
+                        </Typography>
+                    )}
+                    {isAccepted && (
+                        <Typography variant="body2" color="text.secondary">
+                            메모리: {formatMemory(submission.memoryKb)}
+                        </Typography>
+                    )}
                 </Stack>
                 {submission.failedTestcaseOrd && (
                     <Typography variant="body2" color="error">
