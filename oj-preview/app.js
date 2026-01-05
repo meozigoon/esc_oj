@@ -1,5 +1,8 @@
 "use strict";
 
+const AUTH_KEY = "esc-oj-preview-auth";
+const previewPassword = resolvePreviewPassword();
+
 const templateNodes = document.querySelectorAll("template[data-md]");
 const markdownMap = new Map();
 
@@ -19,14 +22,110 @@ const panels = Array.from(document.querySelectorAll(".panel"));
 
 let problemList = [];
 let currentProblemId = null;
+let started = false;
 
-initContent();
-
-tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-        activateTab(tab.dataset.tab);
+const startApp = () => {
+    if (started) {
+        return;
+    }
+    started = true;
+    initContent();
+    tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+            activateTab(tab.dataset.tab);
+        });
     });
-});
+};
+
+if (previewPassword) {
+    setupPreviewLock(previewPassword, startApp);
+} else {
+    startApp();
+}
+
+function resolvePreviewPassword() {
+    const meta = document.querySelector('meta[name="preview-password"]');
+    const raw = meta?.getAttribute("content") ?? "";
+    const trimmed = typeof raw === "string" ? raw.trim() : "";
+    if (!trimmed || trimmed === "__PREVIEW_PASSWORD__") {
+        return "";
+    }
+    return trimmed;
+}
+
+function getStoredAuth() {
+    try {
+        return sessionStorage.getItem(AUTH_KEY) === "1";
+    } catch {
+        return false;
+    }
+}
+
+function setStoredAuth() {
+    try {
+        sessionStorage.setItem(AUTH_KEY, "1");
+    } catch {
+        // ignore storage errors
+    }
+}
+
+function setupPreviewLock(password, onUnlock) {
+    if (getStoredAuth()) {
+        onUnlock();
+        return;
+    }
+
+    document.documentElement.classList.add("preview-locked");
+
+    const overlay = document.createElement("div");
+    overlay.className = "auth-overlay";
+    overlay.innerHTML = `
+        <form class="auth-card" autocomplete="off">
+            <div class="auth-title">Preview Access</div>
+            <p class="auth-subtitle">Enter the password to continue.</p>
+            <label class="auth-field">
+                <span>Password</span>
+                <input type="password" name="password" required />
+            </label>
+            <div class="auth-error" aria-live="polite"></div>
+            <button type="submit" class="auth-button">Enter</button>
+        </form>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const form = overlay.querySelector("form");
+    const input = overlay.querySelector("input");
+    const error = overlay.querySelector(".auth-error");
+
+    if (!form || !input || !error) {
+        overlay.remove();
+        document.documentElement.classList.remove("preview-locked");
+        onUnlock();
+        return;
+    }
+
+    const unlock = () => {
+        setStoredAuth();
+        document.documentElement.classList.remove("preview-locked");
+        overlay.remove();
+        onUnlock();
+    };
+
+    form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const value = String(input.value ?? "");
+        if (value === password) {
+            unlock();
+            return;
+        }
+        error.textContent = "Invalid password.";
+        input.value = "";
+        input.focus();
+    });
+
+    input.focus();
+}
 
 function activateTab(tabName) {
     tabs.forEach((tab) => {
