@@ -28,6 +28,11 @@ const items = [
         description: "접속 기록 조회",
         to: "/admin/access-logs",
     },
+    {
+        title: "Memo",
+        description: "공유 메모장",
+        to: "/admin/memo",
+    },
 ];
 
 export default function AdminHomePage() {

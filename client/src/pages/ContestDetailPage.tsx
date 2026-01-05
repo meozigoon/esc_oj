@@ -3,6 +3,7 @@
     Button,
     Card,
     CardContent,
+    Chip,
     List,
     ListItem,
     ListItemText,
@@ -11,7 +12,13 @@
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { apiFetch, Contest, formatDateTime, ProblemSummary } from "../api";
+import {
+    apiFetch,
+    Contest,
+    ProblemSummary,
+    Submission,
+    formatDateTime,
+} from "../api";
 import Countdown from "../components/Countdown";
 import DifficultyBadge from "../components/DifficultyBadge";
 
@@ -21,7 +28,11 @@ export default function ContestDetailPage() {
     const isValidContestId = Number.isFinite(contestId) && contestId > 0;
     const [contest, setContest] = useState<Contest | null>(null);
     const [problems, setProblems] = useState<ProblemSummary[]>([]);
+    const [solvedProblems, setSolvedProblems] = useState<Set<number>>(
+        new Set()
+    );
     const [error, setError] = useState<string | null>(null);
+    const [now, setNow] = useState(Date.now());
 
     useEffect(() => {
         if (!isValidContestId) {
@@ -31,6 +42,9 @@ export default function ContestDetailPage() {
             return;
         }
         setError(null);
+        setContest(null);
+        setProblems([]);
+        setSolvedProblems(new Set());
         apiFetch<{ contest: Contest }>(`/api/contests/${contestId}`)
             .then((data) => setContest(data.contest))
             .catch((err) =>
@@ -54,15 +68,42 @@ export default function ContestDetailPage() {
             );
     }, [contestId, isValidContestId]);
 
+    useEffect(() => {
+        if (!contest) {
+            return;
+        }
+        const timer = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(timer);
+    }, [contest]);
+
+    useEffect(() => {
+        if (!isValidContestId) {
+            setSolvedProblems(new Set());
+            return;
+        }
+        apiFetch<{ submissions: Submission[] }>(
+            `/api/submissions?mine=1&status=ACCEPTED&contestId=${contestId}`
+        )
+            .then((data) => {
+                const next = new Set<number>();
+                data.submissions.forEach((submission) => {
+                    if (submission.problem?.id) {
+                        next.add(submission.problem.id);
+                    }
+                });
+                setSolvedProblems(next);
+            })
+            .catch(() => setSolvedProblems(new Set()));
+    }, [contestId, isValidContestId]);
+
     const canSubmit = useMemo(() => {
         if (!contest) {
             return false;
         }
-        const now = Date.now();
         const start = new Date(contest.startAt).getTime();
         const end = new Date(contest.endAt).getTime();
         return now >= start && now <= end;
-    }, [contest]);
+    }, [contest, now]);
 
     if (!contest) {
         return (
@@ -106,49 +147,62 @@ export default function ContestDetailPage() {
             >
                 <CardContent>
                     <List disablePadding>
-                        {problems.map((problem, index) => (
-                            <ListItem
-                                key={problem.id}
-                                divider={index < problems.length - 1}
-                                secondaryAction={
-                                    <Button
-                                        component={Link}
-                                        to={`/problems/${problem.id}`}
-                                        variant="outlined"
-                                    >
-                                        문제 보기
-                                    </Button>
-                                }
-                            >
-                                <ListItemText
-                                    primary={problem.title}
-                                    secondary={
-                                        <Stack
-                                            direction="row"
-                                            spacing={1}
-                                            alignItems="center"
+                        {problems.map((problem, index) => {
+                            const isSolved = solvedProblems.has(problem.id);
+                            return (
+                                <ListItem
+                                    key={problem.id}
+                                    divider={index < problems.length - 1}
+                                    secondaryAction={
+                                        <Button
+                                            component={Link}
+                                            to={`/problems/${problem.id}`}
+                                            variant="outlined"
                                         >
-                                            <DifficultyBadge
-                                                difficulty={problem.difficulty}
-                                            />
-                                            <Typography
-                                                variant="body2"
-                                                color="text.secondary"
-                                            >
-                                                시간 제한{" "}
-                                                {problem.timeLimitMs ?? "-"} ms
-                                                | 메모리 제한{" "}
-                                                {problem.memoryLimitMb ?? "-"}{" "}
-                                                MB
-                                            </Typography>
-                                        </Stack>
+                                            문제 보기
+                                        </Button>
                                     }
-                                    secondaryTypographyProps={{
-                                        component: "div",
-                                    }}
-                                />
-                            </ListItem>
-                        ))}
+                                >
+                                    <ListItemText
+                                        primary={problem.title}
+                                        secondary={
+                                            <Stack
+                                                direction="row"
+                                                spacing={1}
+                                                alignItems="center"
+                                            >
+                                                <DifficultyBadge
+                                                    difficulty={
+                                                        problem.difficulty
+                                                    }
+                                                />
+                                                {isSolved && (
+                                                    <Chip
+                                                        label="성공"
+                                                        color="success"
+                                                        size="small"
+                                                        variant="outlined"
+                                                    />
+                                                )}
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                >
+                                                    시간 제한{" "}
+                                                    {problem.timeLimitMs ?? "-"}{" "}
+                                                    ms | 메모리 제한{" "}
+                                                    {problem.memoryLimitMb ?? "-"}{" "}
+                                                    MB
+                                                </Typography>
+                                            </Stack>
+                                        }
+                                        secondaryTypographyProps={{
+                                            component: "div",
+                                        }}
+                                    />
+                                </ListItem>
+                            );
+                        })}
                         {problems.length === 0 && (
                             <ListItem>
                                 <ListItemText primary="등록된 문제가 없습니다." />

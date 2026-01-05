@@ -514,7 +514,7 @@ app.get("/api/contests/:id/problems", requireAuth, async (req, res) => {
     }
     const problems = await prisma.problem.findMany({
         where: { contestId },
-        orderBy: { id: "asc" },
+        orderBy: [{ difficulty: "asc" }, { id: "asc" }],
         select: {
             id: true,
             title: true,
@@ -782,8 +782,12 @@ app.get("/api/submissions/:id", requireAuth, async (req: AuthRequest, res) => {
         return;
     }
 
-    const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
+    const canReadAll = isAdminRead(req.user?.role);
+    const submission = await prisma.submission.findFirst({
+        where: {
+            id: submissionId,
+            ...(canReadAll ? {} : { userId: req.user!.id }),
+        },
         select: {
             id: true,
             userId: true,
@@ -809,11 +813,6 @@ app.get("/api/submissions/:id", requireAuth, async (req: AuthRequest, res) => {
         return;
     }
 
-    if (!isAdminRead(req.user?.role) && submission.userId !== req.user!.id) {
-        res.status(403).json({ message: "접근 권한이 없습니다." });
-        return;
-    }
-
     res.json({ submission });
 });
 
@@ -828,18 +827,17 @@ app.post(
             return;
         }
 
-        const original = await prisma.submission.findUnique({
-            where: { id: submissionId },
+        const isAdmin = req.user?.role === "ADMIN";
+        const original = await prisma.submission.findFirst({
+            where: {
+                id: submissionId,
+                ...(isAdmin ? {} : { userId: req.user!.id }),
+            },
             include: { contest: true, problem: true },
         });
 
         if (!original) {
             res.status(404).json({ message: "제출을 찾을 수 없습니다." });
-            return;
-        }
-
-        if (req.user!.role !== "ADMIN" && original.userId !== req.user!.id) {
-            res.status(403).json({ message: "접근 권한이 없습니다." });
             return;
         }
 
@@ -1161,7 +1159,7 @@ app.get(
     requireAdminRead,
     async (_req, res) => {
         const problems = await prisma.problem.findMany({
-            orderBy: { id: "asc" },
+            orderBy: [{ difficulty: "asc" }, { id: "asc" }],
             include: { contest: true },
         });
         const withStatements = await Promise.all(
@@ -1909,6 +1907,47 @@ app.get(
     `;
 
         res.json({ rows });
+    }
+);
+
+app.get(
+    "/api/admin/memo",
+    requireAuth,
+    requireAdminRead,
+    async (_req, res) => {
+        const memo = await prisma.adminMemo.findFirst({
+            orderBy: { id: "asc" },
+        });
+        res.json({
+            memo: {
+                content: memo?.content ?? "",
+                updatedAt: memo?.updatedAt ?? null,
+            },
+        });
+    }
+);
+
+app.put(
+    "/api/admin/memo",
+    requireAuth,
+    requireAdminWrite,
+    async (req, res) => {
+        const content = String(req.body?.content ?? "");
+        const existing = await prisma.adminMemo.findFirst({
+            orderBy: { id: "asc" },
+        });
+        const memo = existing
+            ? await prisma.adminMemo.update({
+                  where: { id: existing.id },
+                  data: { content },
+              })
+            : await prisma.adminMemo.create({ data: { content } });
+        res.json({
+            memo: {
+                content: memo.content,
+                updatedAt: memo.updatedAt,
+            },
+        });
     }
 );
 

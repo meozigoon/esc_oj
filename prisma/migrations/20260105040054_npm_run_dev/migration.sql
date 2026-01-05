@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE IF EXISTS "AdminMemo" ALTER COLUMN "updatedAt" DROP DEFAULT;

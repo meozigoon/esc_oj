@@ -11,7 +11,13 @@ import {
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { DarkMode, LightMode } from "@mui/icons-material";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import {
+    Link,
+    Outlet,
+    matchPath,
+    useLocation,
+    useNavigate,
+} from "react-router-dom";
 import { useAuth } from "../auth";
 import { useThemeMode } from "../themeMode";
 
@@ -20,6 +26,7 @@ export default function Layout() {
     const navigate = useNavigate();
     const theme = useTheme();
     const { mode, toggleMode } = useThemeMode();
+    const location = useLocation();
     const githubUrl =
         import.meta.env.VITE_GITHUB_URL ??
         "https://github.com/meozigoon/hssh_oj";
@@ -32,6 +39,24 @@ export default function Layout() {
         theme.palette.mode === "dark"
             ? "rgba(148, 163, 184, 0.18)"
             : "rgba(15, 23, 42, 0.08)";
+    const wideRoutes = [
+        "/problems/:id",
+        "/problems/:id/submissions",
+        "/submissions",
+        "/submissions/:id",
+    ];
+    const isWide = wideRoutes.some((pattern) =>
+        matchPath({ path: pattern, end: true }, location.pathname)
+    );
+    const outerMaxWidth = "xl";
+    const contentWidth = isWide
+        ? theme.breakpoints.values.xl
+        : theme.breakpoints.values.lg;
+    const contentBoxSx = {
+        width: "100%",
+        maxWidth: contentWidth,
+        mx: "auto",
+    };
 
     const handleLogout = async () => {
         await logout();
@@ -55,69 +80,86 @@ export default function Layout() {
                     borderBottom: `1px solid ${appBarBorder}`,
                 }}
             >
-                <Toolbar sx={{ gap: 2 }}>
-                    <Typography
-                        variant="h6"
-                        sx={{
-                            fontWeight: 700,
-                            color: "primary.main",
-                            flexGrow: 1,
-                        }}
-                        component={Link}
-                        to="/"
+                <Toolbar disableGutters>
+                    <Container
+                        maxWidth={outerMaxWidth}
+                        sx={{ display: "flex", alignItems: "center" }}
                     >
-                        ESC OJ
-                    </Typography>
-                    <Button
-                        component={Link}
-                        to="/"
-                        variant="outlined"
-                        color="primary"
-                    >
-                        Home
-                    </Button>
-                    {user && (
-                        <Button
-                            component={Link}
-                            to="/submissions"
-                            variant="outlined"
-                            color="primary"
+                        <Box
+                            sx={{
+                                ...contentBoxSx,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                            }}
                         >
-                            My Submissions
-                        </Button>
-                    )}
-                    {(user?.role === "admin" || user?.role === "viewer") && (
-                        <Button
-                            component={Link}
-                            to="/admin"
-                            variant="outlined"
-                            color="primary"
-                        >
-                            Admin
-                        </Button>
-                    )}
-                    {user ? (
-                        <Button
-                            onClick={handleLogout}
-                            variant="outlined"
-                            color="primary"
-                        >
-                            Logout ({user.username})
-                        </Button>
-                    ) : (
-                        <Button
-                            component={Link}
-                            to="/login"
-                            variant="contained"
-                            color="primary"
-                        >
-                            Login
-                        </Button>
-                    )}
+                            <Typography
+                                variant="h6"
+                                sx={{
+                                    fontWeight: 700,
+                                    color: "primary.main",
+                                    flexGrow: 1,
+                                }}
+                                component={Link}
+                                to="/"
+                            >
+                                ESC OJ
+                            </Typography>
+                            <Button
+                                component={Link}
+                                to="/contests"
+                                variant="outlined"
+                                color="primary"
+                            >
+                                대회
+                            </Button>
+                            {user && (
+                                <Button
+                                    component={Link}
+                                    to="/submissions"
+                                    variant="outlined"
+                                    color="primary"
+                                >
+                                    제출 기록
+                                </Button>
+                            )}
+                            {(user?.role === "admin" ||
+                                user?.role === "viewer") && (
+                                <Button
+                                    component={Link}
+                                    to="/admin"
+                                    variant="outlined"
+                                    color="primary"
+                                >
+                                    Admin
+                                </Button>
+                            )}
+                            {user ? (
+                                <Button
+                                    onClick={handleLogout}
+                                    variant="outlined"
+                                    color="primary"
+                                >
+                                    Logout ({user.username})
+                                </Button>
+                            ) : (
+                                <Button
+                                    component={Link}
+                                    to="/login"
+                                    variant="contained"
+                                    color="primary"
+                                >
+                                    Login
+                                </Button>
+                            )}
+                        </Box>
+                    </Container>
                 </Toolbar>
             </AppBar>
-            <Container sx={{ py: 4, flex: 1 }}>
-                <Outlet />
+            <Container maxWidth={outerMaxWidth} sx={{ py: 4, flex: 1 }}>
+                <Box sx={contentBoxSx}>
+                    <Outlet />
+                </Box>
             </Container>
             <Box
                 sx={{
@@ -151,26 +193,32 @@ export default function Layout() {
                 sx={{ borderTop: `1px solid ${appBarBorder}`, py: 2 }}
             >
                 <Container
-                    sx={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 2,
-                    }}
+                    maxWidth={outerMaxWidth}
+                    sx={{ display: "flex", alignItems: "center" }}
                 >
-                    <Typography variant="body2" color="text.secondary">
-                        © {year} DH.L. All rights reserved.
-                    </Typography>
-                    <MuiLink
-                        href={githubUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        underline="hover"
-                        color="text.secondary"
+                    <Box
+                        sx={{
+                            ...contentBoxSx,
+                            display: "flex",
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 2,
+                        }}
                     >
-                        GitHub
-                    </MuiLink>
+                        <Typography variant="body2" color="text.secondary">
+                            © {year} DH.L. All rights reserved.
+                        </Typography>
+                        <MuiLink
+                            href={githubUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            underline="hover"
+                            color="text.secondary"
+                        >
+                            GitHub
+                        </MuiLink>
+                    </Box>
                 </Container>
             </Box>
         </Box>

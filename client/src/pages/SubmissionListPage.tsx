@@ -58,7 +58,6 @@ export default function SubmissionListPage() {
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell>ID</TableCell>
                                 <TableCell>문제</TableCell>
                                 <TableCell>언어</TableCell>
                                 <TableCell>상태</TableCell>
@@ -71,13 +70,6 @@ export default function SubmissionListPage() {
                         <TableBody>
                             {submissions.map((submission) => (
                                 <TableRow key={submission.id} hover>
-                                    <TableCell>
-                                        <Link
-                                            to={`/submissions/${submission.id}`}
-                                        >
-                                            {submission.id}
-                                        </Link>
-                                    </TableCell>
                                     <TableCell>
                                         {submission.problem?.title ?? "-"}
                                     </TableCell>

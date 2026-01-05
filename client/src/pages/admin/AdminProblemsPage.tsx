@@ -23,7 +23,13 @@ import {
 } from "../../api";
 import { useAuth } from "../../auth";
 import DifficultyBadge from "../../components/DifficultyBadge";
+import Markdown from "../../components/Markdown";
 import { difficultyOptions } from "../../utils/difficulty";
+import {
+    SamplePair,
+    encodeSampleList,
+    normalizeSamplePairs,
+} from "../../utils/samples";
 
 const languageOptions: Array<{ value: Language; label: string }> = [
     { value: "C99", label: "C99" },
@@ -52,8 +58,9 @@ export default function AdminProblemsPage() {
     const [contests, setContests] = useState<Contest[]>([]);
     const [title, setTitle] = useState("");
     const [statementMd, setStatementMd] = useState("");
-    const [sampleInput, setSampleInput] = useState("");
-    const [sampleOutput, setSampleOutput] = useState("");
+    const [samplePairs, setSamplePairs] = useState<SamplePair[]>([
+        { input: "", output: "" },
+    ]);
     const [timeLimitMs, setTimeLimitMs] = useState(1000);
     const [memoryLimitMb, setMemoryLimitMb] = useState(256);
     const [score, setScore] = useState(100);
@@ -103,6 +110,29 @@ export default function AdminProblemsPage() {
         }
     }, [searchParams, contestId]);
 
+    const handleAddSamplePair = () => {
+        setSamplePairs((prev) => [...prev, { input: "", output: "" }]);
+    };
+
+    const handleRemoveSamplePair = (index: number) => {
+        setSamplePairs((prev) =>
+            prev.length > 1
+                ? prev.filter((_, pairIndex) => pairIndex !== index)
+                : prev
+        );
+    };
+
+    const handleUpdateSamplePair = (
+        index: number,
+        next: Partial<SamplePair>
+    ) => {
+        setSamplePairs((prev) =>
+            prev.map((pair, pairIndex) =>
+                pairIndex === index ? { ...pair, ...next } : pair
+            )
+        );
+    };
+
     const handleCreate = async () => {
         setError(null);
         const useGeneratedTests =
@@ -120,6 +150,13 @@ export default function AdminProblemsPage() {
                 return;
             }
         }
+        const normalizedSamples = normalizeSamplePairs(samplePairs);
+        const sampleInput = encodeSampleList(
+            normalizedSamples.map((sample) => sample.input)
+        );
+        const sampleOutput = encodeSampleList(
+            normalizedSamples.map((sample) => sample.output)
+        );
         try {
             await apiFetch("/api/admin/problems", {
                 method: "POST",
@@ -149,8 +186,7 @@ export default function AdminProblemsPage() {
             });
             setTitle("");
             setStatementMd("");
-            setSampleInput("");
-            setSampleOutput("");
+            setSamplePairs([{ input: "", output: "" }]);
             setSubmissionType("CODE");
             setJudgeMode("MANUAL");
             setDifficulty("MID");
@@ -199,22 +235,106 @@ export default function AdminProblemsPage() {
                             minRows={4}
                             disabled={isReadOnly}
                         />
-                        <TextField
-                            label="예제 입력"
-                            value={sampleInput}
-                            onChange={(e) => setSampleInput(e.target.value)}
-                            multiline
-                            minRows={2}
-                            disabled={isReadOnly}
-                        />
-                        <TextField
-                            label="예제 출력"
-                            value={sampleOutput}
-                            onChange={(e) => setSampleOutput(e.target.value)}
-                            multiline
-                            minRows={2}
-                            disabled={isReadOnly}
-                        />
+                        <Stack spacing={1}>
+                            <Typography variant="subtitle1" fontWeight={600}>
+                                본문 미리보기
+                            </Typography>
+                            {statementMd.trim().length > 0 ? (
+                                <Box
+                                    sx={{
+                                        p: 2,
+                                        borderRadius: 1,
+                                        border: "1px solid #e5e7eb",
+                                        backgroundColor:
+                                            "rgba(15, 23, 42, 0.03)",
+                                    }}
+                                >
+                                    <Markdown>{statementMd}</Markdown>
+                                </Box>
+                            ) : (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                >
+                                    미리보기 내용이 없습니다.
+                                </Typography>
+                            )}
+                        </Stack>
+                        <Stack spacing={2}>
+                            <Typography variant="subtitle1" fontWeight={600}>
+                                예제 입출력
+                            </Typography>
+                            {samplePairs.map((sample, index) => (
+                                <Box
+                                    key={`sample-${index}`}
+                                    sx={{
+                                        p: 2,
+                                        borderRadius: 1,
+                                        border: "1px solid #e5e7eb",
+                                    }}
+                                >
+                                    <Stack spacing={2}>
+                                        <Stack
+                                            direction="row"
+                                            spacing={2}
+                                            alignItems="center"
+                                        >
+                                            <Typography
+                                                variant="subtitle2"
+                                                fontWeight={600}
+                                            >
+                                                예제 {index + 1}
+                                            </Typography>
+                                            {samplePairs.length > 1 && (
+                                                <Button
+                                                    color="error"
+                                                    variant="outlined"
+                                                    onClick={() =>
+                                                        handleRemoveSamplePair(
+                                                            index
+                                                        )
+                                                    }
+                                                    disabled={isReadOnly}
+                                                >
+                                                    삭제
+                                                </Button>
+                                            )}
+                                        </Stack>
+                                        <TextField
+                                            label="예제 입력"
+                                            value={sample.input}
+                                            onChange={(e) =>
+                                                handleUpdateSamplePair(index, {
+                                                    input: e.target.value,
+                                                })
+                                            }
+                                            multiline
+                                            minRows={2}
+                                            disabled={isReadOnly}
+                                        />
+                                        <TextField
+                                            label="예제 출력"
+                                            value={sample.output}
+                                            onChange={(e) =>
+                                                handleUpdateSamplePair(index, {
+                                                    output: e.target.value,
+                                                })
+                                            }
+                                            multiline
+                                            minRows={2}
+                                            disabled={isReadOnly}
+                                        />
+                                    </Stack>
+                                </Box>
+                            ))}
+                            <Button
+                                variant="outlined"
+                                onClick={handleAddSamplePair}
+                                disabled={isReadOnly}
+                            >
+                                예제 추가
+                            </Button>
+                        </Stack>
                         <Stack
                             direction={{ xs: "column", md: "row" }}
                             spacing={2}
@@ -394,9 +514,12 @@ export default function AdminProblemsPage() {
                                             variant="body2"
                                             color="text.secondary"
                                         >
-                                            생성 코드는 JSON 배열(각 요소는 입력
-                                            문자열) 또는 --- 구분자로
-                                            테스트케이스를 출력하세요.
+                                            생성 코드는 1회 실행마다 JSON
+                                            배열(각 요소는 입력 문자열) 또는 ---
+                                            구분자로 테스트케이스를 출력하세요.
+                                            생성 코드는 100회 실행하며 출력된
+                                            테스트케이스 중 앞 100개를
+                                            사용합니다.
                                         </Typography>
                                         <FormControl>
                                             <InputLabel id="generator-language-label">

@@ -147,3 +147,9 @@ model Submission {
   @@index([problemId, createdAt])
   @@index([contestId, createdAt])
 }
+
+model AdminMemo {
+  id        Int      @id @default(autoincrement())
+  content   String   @default("")
+  updatedAt DateTime @updatedAt
+}

@@ -144,7 +144,9 @@ export async function apiFetch<T>(
         } catch {
             // ignore
         }
-        throw new Error(message);
+        const error = new Error(message) as Error & { status?: number };
+        error.status = response.status;
+        throw error;
     }
 
     return response.json() as Promise<T>;

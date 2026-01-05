@@ -37,13 +37,14 @@ export default function ProblemSubmissionsPage() {
         setError(null);
         apiFetch<{ problem: Problem }>(`/api/problems/${problemId}`)
             .then((data) => setProblem(data.problem))
-            .catch((err) =>
+            .catch((err) => {
+                setProblem(null);
                 setError(
                     err instanceof Error
                         ? err.message
                         : "문제를 불러오지 못했습니다."
-                )
-            );
+                );
+            });
     }, [problemId, isValidProblemId]);
 
     const fetchSubmissions = useCallback(() => {
@@ -55,13 +56,14 @@ export default function ProblemSubmissionsPage() {
             `/api/submissions?problemId=${problemId}`
         )
             .then((data) => setSubmissions(data.submissions))
-            .catch((err) =>
+            .catch((err) => {
+                setSubmissions([]);
                 setError(
                     err instanceof Error
                         ? err.message
                         : "제출을 불러오지 못했습니다."
-                )
-            );
+                );
+            });
     }, [problemId, isValidProblemId]);
 
     useEffect(() => {
@@ -71,6 +73,8 @@ export default function ProblemSubmissionsPage() {
             setError("잘못된 problemId입니다.");
             return;
         }
+        setProblem(null);
+        setSubmissions([]);
         fetchProblem();
         fetchSubmissions();
     }, [fetchProblem, fetchSubmissions, isValidProblemId]);
@@ -133,7 +137,6 @@ export default function ProblemSubmissionsPage() {
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell>ID</TableCell>
                                 <TableCell>언어</TableCell>
                                 <TableCell>상태</TableCell>
                                 <TableCell>시간</TableCell>
@@ -145,13 +148,6 @@ export default function ProblemSubmissionsPage() {
                         <TableBody>
                             {submissions.map((submission) => (
                                 <TableRow key={submission.id} hover>
-                                    <TableCell>
-                                        <Link
-                                            to={`/submissions/${submission.id}`}
-                                        >
-                                            {submission.id}
-                                        </Link>
-                                    </TableCell>
                                     <TableCell>
                                         {submission.problem?.submissionType ===
                                         "TEXT"
@@ -195,7 +191,7 @@ export default function ProblemSubmissionsPage() {
                             ))}
                             {submissions.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={7}>
+                                    <TableCell colSpan={6}>
                                         <Typography color="text.secondary">
                                             아직 제출 기록이 없습니다.
                                         </Typography>

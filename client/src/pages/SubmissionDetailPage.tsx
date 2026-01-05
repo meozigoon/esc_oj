@@ -10,6 +10,14 @@ import {
 } from "../api";
 import StatusChip from "../components/StatusChip";
 
+function isAccessError(err: unknown): boolean {
+    if (!(err instanceof Error)) {
+        return false;
+    }
+    const status = (err as Error & { status?: number }).status;
+    return status === 401 || status === 403 || status === 404;
+}
+
 export default function SubmissionDetailPage() {
     const { id } = useParams();
     const submissionId = Number(id);
@@ -27,19 +35,27 @@ export default function SubmissionDetailPage() {
             return;
         }
         setError(null);
+        setSubmission(null);
         try {
             const data = await apiFetch<{ submission: Submission }>(
                 `/api/submissions/${submissionId}`
             );
             setSubmission(data.submission);
         } catch (err) {
+            if (isAccessError(err)) {
+                setSubmission(null);
+                setError(null);
+                navigate("/submissions", { replace: true });
+                return;
+            }
+            setSubmission(null);
             setError(
                 err instanceof Error
                     ? err.message
                     : "제출을 불러오지 못했습니다."
             );
         }
-    }, [submissionId, isValidSubmissionId]);
+    }, [submissionId, isValidSubmissionId, navigate]);
 
     useEffect(() => {
         fetchSubmission();

@@ -16,12 +16,13 @@
     Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
     apiFetch,
     Submission,
     SubmissionStatus,
     formatDateTime,
+    formatDuration,
     formatMemory,
 } from "../../api";
 import StatusChip from "../../components/StatusChip";
@@ -200,11 +201,11 @@ export default function AdminSubmissionsPage() {
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell>ID</TableCell>
                                 <TableCell>유저</TableCell>
                                 <TableCell>문제</TableCell>
                                 <TableCell>언어</TableCell>
                                 <TableCell>상태</TableCell>
+                                <TableCell>실행 시간</TableCell>
                                 <TableCell>메모리</TableCell>
                                 <TableCell>제출 시각</TableCell>
                             </TableRow>
@@ -212,13 +213,6 @@ export default function AdminSubmissionsPage() {
                         <TableBody>
                             {filtered.map((submission) => (
                                 <TableRow key={submission.id} hover>
-                                    <TableCell>
-                                        <Link
-                                            to={`/submissions/${submission.id}`}
-                                        >
-                                            {submission.id}
-                                        </Link>
-                                    </TableCell>
                                     <TableCell>
                                         {submission.user?.username ?? "-"}
                                     </TableCell>
@@ -236,6 +230,13 @@ export default function AdminSubmissionsPage() {
                                             status={submission.status}
                                             message={submission.message}
                                         />
+                                    </TableCell>
+                                    <TableCell>
+                                        {submission.status === "ACCEPTED"
+                                            ? formatDuration(
+                                                  submission.runtimeMs
+                                              )
+                                            : "-"}
                                     </TableCell>
                                     <TableCell>
                                         {submission.status === "ACCEPTED"

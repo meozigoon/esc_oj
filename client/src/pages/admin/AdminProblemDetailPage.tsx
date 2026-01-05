@@ -24,7 +24,14 @@ import {
     Testcase,
 } from "../../api";
 import { useAuth } from "../../auth";
+import Markdown from "../../components/Markdown";
 import { difficultyOptions } from "../../utils/difficulty";
+import {
+    SamplePair,
+    buildSamplePairs,
+    encodeSampleList,
+    normalizeSamplePairs,
+} from "../../utils/samples";
 
 const languageOptions: Array<{ value: Language; label: string }> = [
     { value: "C99", label: "C99" },
@@ -63,6 +70,9 @@ export default function AdminProblemDetailPage() {
     const { user } = useAuth();
     const isReadOnly = user?.role === "viewer";
     const [problem, setProblem] = useState<Problem | null>(null);
+    const [samplePairs, setSamplePairs] = useState<SamplePair[]>([
+        { input: "", output: "" },
+    ]);
     const [contests, setContests] = useState<Contest[]>([]);
     const [testcases, setTestcases] = useState<Testcase[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -80,6 +90,8 @@ export default function AdminProblemDetailPage() {
             return;
         }
         setError(null);
+        setProblem(null);
+        setTestcases([]);
         apiFetch<{ problem: Problem }>(`/api/admin/problems/${problemId}`)
             .then((data) => {
                 setProblem({
@@ -87,28 +99,37 @@ export default function AdminProblemDetailPage() {
                     difficulty: data.problem.difficulty ?? "MID",
                     score: data.problem.score ?? 100,
                 });
+                const pairs = buildSamplePairs(
+                    data.problem.sampleInput,
+                    data.problem.sampleOutput
+                );
+                setSamplePairs(
+                    pairs.length > 0 ? pairs : [{ input: "", output: "" }]
+                );
                 setJudgeMode(
                     hasGeneratedTests(data.problem) ? "GENERATED" : "MANUAL"
                 );
             })
-            .catch((err) =>
+            .catch((err) => {
+                setProblem(null);
                 setError(
                     err instanceof Error
                         ? err.message
                         : "문제를 불러오지 못했습니다."
-                )
-            );
+                );
+            });
         apiFetch<{ testcases: Testcase[] }>(
             `/api/admin/problems/${problemId}/testcases`
         )
             .then((data) => setTestcases(data.testcases))
-            .catch((err) =>
+            .catch((err) => {
+                setTestcases([]);
                 setError(
                     err instanceof Error
                         ? err.message
                         : "테스트케이스를 불러오지 못했습니다."
-                )
-            );
+                );
+            });
         apiFetch<{ contests: Contest[] }>("/api/contests")
             .then((data) => setContests(data.contests))
             .catch(() => undefined);
@@ -117,6 +138,29 @@ export default function AdminProblemDetailPage() {
     useEffect(() => {
         fetchAll();
     }, [fetchAll]);
+
+    const handleAddSamplePair = () => {
+        setSamplePairs((prev) => [...prev, { input: "", output: "" }]);
+    };
+
+    const handleRemoveSamplePair = (index: number) => {
+        setSamplePairs((prev) =>
+            prev.length > 1
+                ? prev.filter((_, pairIndex) => pairIndex !== index)
+                : prev
+        );
+    };
+
+    const handleUpdateSamplePair = (
+        index: number,
+        next: Partial<SamplePair>
+    ) => {
+        setSamplePairs((prev) =>
+            prev.map((pair, pairIndex) =>
+                pairIndex === index ? { ...pair, ...next } : pair
+            )
+        );
+    };
 
     const handleSaveProblem = async () => {
         if (!problem) {
@@ -141,14 +185,21 @@ export default function AdminProblemDetailPage() {
                 return;
             }
         }
+        const normalizedSamples = normalizeSamplePairs(samplePairs);
+        const sampleInput = encodeSampleList(
+            normalizedSamples.map((sample) => sample.input)
+        );
+        const sampleOutput = encodeSampleList(
+            normalizedSamples.map((sample) => sample.output)
+        );
         try {
             await apiFetch(`/api/admin/problems/${problem.id}`, {
                 method: "PUT",
                 body: JSON.stringify({
                     title: problem.title,
                     statementMd: problem.statementMd,
-                    sampleInput: problem.sampleInput,
-                    sampleOutput: problem.sampleOutput,
+                    sampleInput,
+                    sampleOutput,
                     timeLimitMs: problem.timeLimitMs,
                     memoryLimitMb: problem.memoryLimitMb,
                     score: problem.score ?? 0,
@@ -330,32 +381,106 @@ export default function AdminProblemDetailPage() {
                             minRows={4}
                             disabled={isReadOnly}
                         />
-                        <TextField
-                            label="예제 입력"
-                            value={problem.sampleInput}
-                            onChange={(e) =>
-                                setProblem({
-                                    ...problem,
-                                    sampleInput: e.target.value,
-                                })
-                            }
-                            multiline
-                            minRows={2}
-                            disabled={isReadOnly}
-                        />
-                        <TextField
-                            label="예제 출력"
-                            value={problem.sampleOutput}
-                            onChange={(e) =>
-                                setProblem({
-                                    ...problem,
-                                    sampleOutput: e.target.value,
-                                })
-                            }
-                            multiline
-                            minRows={2}
-                            disabled={isReadOnly}
-                        />
+                        <Stack spacing={1}>
+                            <Typography variant="subtitle1" fontWeight={600}>
+                                본문 미리보기
+                            </Typography>
+                            {problem.statementMd.trim().length > 0 ? (
+                                <Box
+                                    sx={{
+                                        p: 2,
+                                        borderRadius: 1,
+                                        border: "1px solid #e5e7eb",
+                                        backgroundColor:
+                                            "rgba(15, 23, 42, 0.03)",
+                                    }}
+                                >
+                                    <Markdown>{problem.statementMd}</Markdown>
+                                </Box>
+                            ) : (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                >
+                                    미리보기 내용이 없습니다.
+                                </Typography>
+                            )}
+                        </Stack>
+                        <Stack spacing={2}>
+                            <Typography variant="subtitle1" fontWeight={600}>
+                                예제 입출력
+                            </Typography>
+                            {samplePairs.map((sample, index) => (
+                                <Box
+                                    key={`sample-${index}`}
+                                    sx={{
+                                        p: 2,
+                                        borderRadius: 1,
+                                        border: "1px solid #e5e7eb",
+                                    }}
+                                >
+                                    <Stack spacing={2}>
+                                        <Stack
+                                            direction="row"
+                                            spacing={2}
+                                            alignItems="center"
+                                        >
+                                            <Typography
+                                                variant="subtitle2"
+                                                fontWeight={600}
+                                            >
+                                                예제 {index + 1}
+                                            </Typography>
+                                            {samplePairs.length > 1 && (
+                                                <Button
+                                                    color="error"
+                                                    variant="outlined"
+                                                    onClick={() =>
+                                                        handleRemoveSamplePair(
+                                                            index
+                                                        )
+                                                    }
+                                                    disabled={isReadOnly}
+                                                >
+                                                    삭제
+                                                </Button>
+                                            )}
+                                        </Stack>
+                                        <TextField
+                                            label="예제 입력"
+                                            value={sample.input}
+                                            onChange={(e) =>
+                                                handleUpdateSamplePair(index, {
+                                                    input: e.target.value,
+                                                })
+                                            }
+                                            multiline
+                                            minRows={2}
+                                            disabled={isReadOnly}
+                                        />
+                                        <TextField
+                                            label="예제 출력"
+                                            value={sample.output}
+                                            onChange={(e) =>
+                                                handleUpdateSamplePair(index, {
+                                                    output: e.target.value,
+                                                })
+                                            }
+                                            multiline
+                                            minRows={2}
+                                            disabled={isReadOnly}
+                                        />
+                                    </Stack>
+                                </Box>
+                            ))}
+                            <Button
+                                variant="outlined"
+                                onClick={handleAddSamplePair}
+                                disabled={isReadOnly}
+                            >
+                                예제 추가
+                            </Button>
+                        </Stack>
                         <Stack
                             direction={{ xs: "column", md: "row" }}
                             spacing={2}
@@ -554,9 +679,12 @@ export default function AdminProblemDetailPage() {
                                             variant="body2"
                                             color="text.secondary"
                                         >
-                                            생성 코드는 JSON 배열(각 요소는 입력
-                                            문자열) 또는 --- 구분자로
-                                            테스트케이스를 출력하세요.
+                                            생성 코드는 1회 실행마다 JSON
+                                            배열(각 요소는 입력 문자열) 또는 ---
+                                            구분자로 테스트케이스를 출력하세요.
+                                            생성 코드는 100회 실행하며 출력된
+                                            테스트케이스 중 앞 100개를
+                                            사용합니다.
                                         </Typography>
                                         <FormControl>
                                             <InputLabel id="generator-language-label">

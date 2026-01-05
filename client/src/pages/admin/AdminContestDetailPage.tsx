@@ -44,6 +44,8 @@ export default function AdminContestDetailPage() {
             return;
         }
         setError(null);
+        setContest(null);
+        setProblems([]);
         apiFetch<{ contest: Contest }>(`/api/contests/${contestId}`)
             .then((data) => {
                 setContest(data.contest);

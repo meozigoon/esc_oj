@@ -20,6 +20,7 @@ import AdminSubmissionsPage from "./pages/admin/AdminSubmissionsPage";
 import AdminSummaryPage from "./pages/admin/AdminSummaryPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminAccessLogsPage from "./pages/admin/AdminAccessLogsPage";
+import AdminMemoPage from "./pages/admin/AdminMemoPage";
 
 export default function App() {
     return (
@@ -149,6 +150,14 @@ export default function App() {
                         element={
                             <RequireAdmin>
                                 <AdminAccessLogsPage />
+                            </RequireAdmin>
+                        }
+                    />
+                    <Route
+                        path="admin/memo"
+                        element={
+                            <RequireAdmin>
+                                <AdminMemoPage />
                             </RequireAdmin>
                         }
                     />

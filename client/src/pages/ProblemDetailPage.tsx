@@ -20,7 +20,6 @@ import {
     useParams,
     useSearchParams,
 } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
 import {
     apiFetch,
     formatDuration,
@@ -32,8 +31,10 @@ import {
     SubmissionStatus,
 } from "../api";
 import { useAuth } from "../auth";
+import Markdown from "../components/Markdown";
 import DifficultyBadge from "../components/DifficultyBadge";
 import { useThemeMode } from "../themeMode";
+import { buildSamplePairs, getFirstSampleInput } from "../utils/samples";
 
 const languageOptions: Array<{
     value: Language;
@@ -67,6 +68,14 @@ const languageNotes: Record<Language, string[]> = {
 };
 const codeFontFamily = "Consolas, 'Courier New', monospace";
 
+function isAccessError(err: unknown): boolean {
+    if (!(err instanceof Error)) {
+        return false;
+    }
+    const status = (err as Error & { status?: number }).status;
+    return status === 401 || status === 403 || status === 404;
+}
+
 export default function ProblemDetailPage() {
     const { id } = useParams();
     const problemId = Number(id);
@@ -81,6 +90,7 @@ export default function ProblemDetailPage() {
     const [runInput, setRunInput] = useState("");
     const [runResult, setRunResult] = useState<RunResult | null>(null);
     const [runError, setRunError] = useState<string | null>(null);
+    const [now, setNow] = useState(Date.now());
     const [loadedSubmission, setLoadedSubmission] = useState<Submission | null>(
         null
     );
@@ -98,6 +108,7 @@ export default function ProblemDetailPage() {
             return;
         }
         setError(null);
+        setProblem(null);
         apiFetch<{ problem: Problem }>(`/api/problems/${problemId}`)
             .then((data) => setProblem(data.problem))
             .catch((err) =>
@@ -121,9 +132,17 @@ export default function ProblemDetailPage() {
 
     useEffect(() => {
         if (problem) {
-            setRunInput(problem.sampleInput ?? "");
+            setRunInput(getFirstSampleInput(problem.sampleInput));
         }
     }, [problem]);
+
+    useEffect(() => {
+        if (!problem?.contest) {
+            return;
+        }
+        const timer = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(timer);
+    }, [problem?.contest]);
 
     useEffect(() => {
         if (!isValidProblemId) {
@@ -163,24 +182,29 @@ export default function ProblemDetailPage() {
                 setLoadedSubmission(submission);
                 lastLoadedSubmissionId.current = submissionId;
             })
-            .catch((err) =>
+            .catch((err) => {
+                if (isAccessError(err)) {
+                    setLoadedSubmission(null);
+                    lastLoadedSubmissionId.current = submissionId;
+                    setSubmitError(null);
+                    return;
+                }
                 setSubmitError(
                     err instanceof Error
                         ? err.message
                         : "제출 코드를 불러오지 못했습니다."
-                )
-            );
+                );
+            });
     }, [problemId, searchParams, user, isTextProblem, isValidProblemId]);
 
     const canSubmit = useMemo(() => {
         if (!problem?.contest) {
             return true;
         }
-        const now = Date.now();
         const start = new Date(problem.contest.startAt).getTime();
         const end = new Date(problem.contest.endAt).getTime();
         return now >= start && now <= end;
-    }, [problem]);
+    }, [problem, now]);
 
     const handleSubmit = async () => {
         if (!problem) {
@@ -305,11 +329,15 @@ export default function ProblemDetailPage() {
         return <Typography>{error ?? "Loading..."}</Typography>;
     }
 
-    const sampleInputValue = problem.sampleInput ?? "";
-    const sampleOutputValue = problem.sampleOutput ?? "";
-    const hasSampleInput = sampleInputValue.trim().length > 0;
-    const hasSampleOutput = sampleOutputValue.trim().length > 0;
-    const hasSamples = hasSampleInput || hasSampleOutput;
+    const samples = buildSamplePairs(
+        problem.sampleInput,
+        problem.sampleOutput
+    ).filter(
+        (sample) =>
+            sample.input.trim().length > 0 ||
+            sample.output.trim().length > 0
+    );
+    const hasSamples = samples.length > 0;
 
     return (
         <Stack spacing={3}>
@@ -347,58 +375,78 @@ export default function ProblemDetailPage() {
                                 <Typography variant="h6" fontWeight={700}>
                                     문제 설명
                                 </Typography>
-                                <ReactMarkdown>
-                                    {problem.statementMd}
-                                </ReactMarkdown>
+                                <Markdown>{problem.statementMd}</Markdown>
                                 {hasSamples ? (
                                     <>
                                         <Divider />
-                                        {hasSampleInput && (
-                                            <>
-                                                <Typography
-                                                    variant="subtitle1"
-                                                    fontWeight={600}
+                                        <Stack
+                                            spacing={2}
+                                            divider={<Divider flexItem />}
+                                        >
+                                            {samples.map((sample, index) => (
+                                                <Stack
+                                                    key={`sample-${index}`}
+                                                    spacing={2}
                                                 >
-                                                    예제 입력
-                                                </Typography>
-                                                <Box
-                                                    component="pre"
-                                                    sx={{
-                                                        p: 2,
-                                                        backgroundColor:
-                                                            "rgba(31, 122, 140, 0.08)",
-                                                        borderRadius: 1,
-                                                        fontFamily:
-                                                            codeFontFamily,
-                                                    }}
-                                                >
-                                                    {sampleInputValue}
-                                                </Box>
-                                            </>
-                                        )}
-                                        {hasSampleOutput && (
-                                            <>
-                                                <Typography
-                                                    variant="subtitle1"
-                                                    fontWeight={600}
-                                                >
-                                                    예제 출력
-                                                </Typography>
-                                                <Box
-                                                    component="pre"
-                                                    sx={{
-                                                        p: 2,
-                                                        backgroundColor:
-                                                            "rgba(244, 162, 97, 0.12)",
-                                                        borderRadius: 1,
-                                                        fontFamily:
-                                                            codeFontFamily,
-                                                    }}
-                                                >
-                                                    {sampleOutputValue}
-                                                </Box>
-                                            </>
-                                        )}
+                                                    {samples.length > 1 && (
+                                                        <Typography
+                                                            variant="subtitle2"
+                                                            fontWeight={600}
+                                                        >
+                                                            예제 {index + 1}
+                                                        </Typography>
+                                                    )}
+                                                    {sample.input.trim()
+                                                        .length > 0 && (
+                                                        <>
+                                                            <Typography
+                                                                variant="subtitle1"
+                                                                fontWeight={600}
+                                                            >
+                                                                예제 입력
+                                                            </Typography>
+                                                            <Box
+                                                                component="pre"
+                                                                sx={{
+                                                                    p: 2,
+                                                                    backgroundColor:
+                                                                        "rgba(31, 122, 140, 0.08)",
+                                                                    borderRadius: 1,
+                                                                    fontFamily:
+                                                                        codeFontFamily,
+                                                                }}
+                                                            >
+                                                                {sample.input}
+                                                            </Box>
+                                                        </>
+                                                    )}
+                                                    {sample.output.trim()
+                                                        .length > 0 && (
+                                                        <>
+                                                            <Typography
+                                                                variant="subtitle1"
+                                                                fontWeight={600}
+                                                            >
+                                                                예제 출력
+                                                            </Typography>
+                                                            <Box
+                                                                component="pre"
+                                                                sx={{
+                                                                    p: 2,
+                                                                    backgroundColor:
+                                                                        "rgba(244, 162, 97, 0.12)",
+                                                                    borderRadius: 1,
+                                                                    fontFamily:
+                                                                        codeFontFamily,
+                                                                }}
+                                                            >
+                                                                {sample.output}
+                                                            </Box>
+                                                        </>
+                                                    )}
+                                                </Stack>
+                                            ))}
+                                        </Stack>
                                     </>
                                 ) : (
                                     <>
