@@ -4,7 +4,7 @@ import fs from "fs/promises";
 import IORedis from "ioredis";
 import path from "path";
 import { Language, PrismaClient, SubmissionStatus } from "@prisma/client";
-import { judgeSubmission, runSubmission } from "./judge";
+import { JudgeProgress, judgeSubmission, runSubmission } from "./judge";
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const rootEnvPath = path.resolve(repoRoot, ".env");
@@ -136,6 +136,17 @@ const worker = new Worker(
                 problem: submission.problem,
                 testcases,
                 image: judgeImage,
+                onProgress: async (progress: JudgeProgress) => {
+                    await prisma.submission.updateMany({
+                        where: {
+                            id: submissionId,
+                            status: SubmissionStatus.RUNNING,
+                        },
+                        data: {
+                            message: `채점 중 (${progress.percent}%)`,
+                        },
+                    });
+                },
             });
 
             await prisma.submission.update({

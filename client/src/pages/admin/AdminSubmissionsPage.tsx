@@ -2,6 +2,10 @@
     Button,
     Card,
     CardContent,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
     InputLabel,
     MenuItem,
@@ -15,7 +19,7 @@
     TextField,
     Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
     apiFetch,
@@ -49,6 +53,10 @@ export default function AdminSubmissionsPage() {
     const [status, setStatus] = useState<SubmissionStatus | "">("");
     const [search, setSearch] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [selected, setSelected] = useState<Submission | null>(null);
+    const [codeError, setCodeError] = useState<string | null>(null);
+    const [codeLoading, setCodeLoading] = useState(false);
+    const codeRequestRef = useRef(0);
     const [searchParams] = useSearchParams();
 
     useEffect(() => {
@@ -93,6 +101,24 @@ export default function AdminSubmissionsPage() {
         fetchSubmissions();
     }, [fetchSubmissions]);
 
+    const hasRunning = useMemo(
+        () =>
+            submissions.some((submission) =>
+                ["PENDING", "RUNNING"].includes(submission.status)
+            ),
+        [submissions]
+    );
+
+    useEffect(() => {
+        if (!hasRunning) {
+            return;
+        }
+        const timer = setInterval(() => {
+            fetchSubmissions();
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [fetchSubmissions, hasRunning]);
+
     const filtered = useMemo(() => {
         const keyword = search.trim().toLowerCase();
         if (!keyword) {
@@ -104,6 +130,49 @@ export default function AdminSubmissionsPage() {
             return user.includes(keyword) || problem.includes(keyword);
         });
     }, [search, submissions]);
+
+    const handleOpenCode = (submission: Submission) => {
+        const requestId = codeRequestRef.current + 1;
+        codeRequestRef.current = requestId;
+        setSelected(submission);
+        setCodeError(null);
+        setCodeLoading(true);
+
+        apiFetch<{ submission: Submission }>(
+            `/api/submissions/${submission.id}`
+        )
+            .then((data) => {
+                if (codeRequestRef.current !== requestId) {
+                    return;
+                }
+                setSelected(data.submission);
+            })
+            .catch((err) => {
+                if (codeRequestRef.current !== requestId) {
+                    return;
+                }
+                setCodeError(
+                    err instanceof Error
+                        ? err.message
+                        : "코드를 불러오지 못했습니다."
+                );
+            })
+            .finally(() => {
+                if (codeRequestRef.current !== requestId) {
+                    return;
+                }
+                setCodeLoading(false);
+            });
+    };
+
+    const handleCloseCode = () => {
+        codeRequestRef.current += 1;
+        setSelected(null);
+        setCodeError(null);
+        setCodeLoading(false);
+    };
+
+    const hasCode = Boolean(selected?.code && selected.code.trim().length > 0);
 
     return (
         <Stack spacing={3}>
@@ -208,6 +277,7 @@ export default function AdminSubmissionsPage() {
                                 <TableCell>실행 시간</TableCell>
                                 <TableCell>메모리</TableCell>
                                 <TableCell>제출 시각</TableCell>
+                                <TableCell>코드</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -240,13 +310,22 @@ export default function AdminSubmissionsPage() {
                                     </TableCell>
                                     <TableCell>
                                         {submission.status === "ACCEPTED"
-                                            ? formatMemory(
-                                                  submission.memoryKb
-                                              )
+                                            ? formatMemory(submission.memoryKb)
                                             : "-"}
                                     </TableCell>
                                     <TableCell>
                                         {formatDateTime(submission.createdAt)}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={() =>
+                                                handleOpenCode(submission)
+                                            }
+                                        >
+                                            보기
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -254,6 +333,53 @@ export default function AdminSubmissionsPage() {
                     </Table>
                 </CardContent>
             </Card>
+            <Dialog
+                open={Boolean(selected)}
+                onClose={handleCloseCode}
+                fullWidth
+                maxWidth="md"
+            >
+                <DialogTitle>제출 코드</DialogTitle>
+                <DialogContent dividers>
+                    <Stack spacing={1.5}>
+                        <Typography variant="body2" color="text.secondary">
+                            {selected?.user?.username ?? "-"} /{" "}
+                            {selected?.problem?.title ?? "-"} /{" "}
+                            {selected?.problem?.submissionType === "TEXT"
+                                ? "TEXT"
+                                : selected?.language ?? "-"}
+                        </Typography>
+                        {codeLoading ? (
+                            <Typography color="text.secondary">
+                                코드를 불러오는 중...
+                            </Typography>
+                        ) : codeError ? (
+                            <Typography color="error">{codeError}</Typography>
+                        ) : hasCode ? (
+                            <TextField
+                                value={selected?.code ?? ""}
+                                multiline
+                                minRows={12}
+                                fullWidth
+                                InputProps={{
+                                    readOnly: true,
+                                    sx: {
+                                        fontFamily:
+                                            "Consolas, 'Courier New', monospace",
+                                    },
+                                }}
+                            />
+                        ) : (
+                            <Typography color="text.secondary">
+                                코드가 없습니다.
+                            </Typography>
+                        )}
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseCode}>닫기</Button>
+                </DialogActions>
+            </Dialog>
         </Stack>
     );
 }

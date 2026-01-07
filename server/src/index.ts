@@ -1716,12 +1716,18 @@ app.get(
         const submissions = await prisma.submission.findMany({
             where,
             orderBy: { createdAt: "desc" },
-            include: {
+            select: {
+                id: true,
+                language: true,
+                status: true,
+                message: true,
+                createdAt: true,
+                runtimeMs: true,
+                memoryKb: true,
                 user: { select: { id: true, username: true } },
                 problem: {
                     select: { id: true, title: true, submissionType: true },
                 },
-                contest: { select: { id: true, title: true } },
             },
         });
 

@@ -170,7 +170,7 @@
             </main>
             <footer class="footer">ESC OJ 문제 미리보기 전용 페이지</footer>
         </div>
-                <template data-md="problem-index">
+                        <template data-md="problem-index">
 # 문제 목록
 - 1 | A. Hello, HSSH 35th! | problems/1
 - 5 | B. 최소공배수?? | problems/5
@@ -224,6 +224,93 @@ Hello, HSSH 35th!
         <template data-problem="1" data-md="generator">
 생성 코드가 제공되지 않았다.
         </template>
+        <template data-problem="5" data-md="meta">
+---
+title: B. 최소공배수??
+timeLimitMs: 2000
+memoryLimitMb: 128
+difficulty: MID
+---
+        </template>
+        <template data-problem="5" data-md="problem">
+ESC 면접 시험 문제를 만들고 있는 동하는 참고할 문제 예시를 찾던 중, 각 문제의 정답 비율을 이용한 새로운 게임을 만들었다. 바로 **최소공배수??** 찾기이다.
+
+각 문제의 난이도를 판별할 수 있는 지표 중에서 정답 비율이 있다. 정답 비율은 $1$ 이상, $100$ 이하의 자연수이다.
+
+**최소공배수??** 란  동하가 찾은 5개 문제의 정답 비율 중 적어도 세 개로 나누어지는 가장 작은 자연수이다.
+
+동하는 이 게임을 재훈이와 함께 하려고 한다. 동하가 재훈이를 항상 이길 수 있도록 **최소공배수??** 를 찾는 프로그램을 만들어주자.
+
+### 입력
+첫째 줄에 다섯 개 문제의 정답 비율이 주어진다. 정답 비율의 값은 $100$ 이하의 자연수이고, 서로 다른 수이다.
+
+### 출력
+첫째 줄에 입력에 대한 **최소공배수??** 를 출력한다.
+        </template>
+        <template data-problem="5" data-md="samples">
+### 예제 입력 1
+```text
+1 2 3 4 5
+```
+
+### 예제 출력 1
+```text
+4
+```
+
+### 예제 입력 2
+```text
+30 42 70 35 90
+```
+
+### 예제 출력 2
+```text
+210
+```
+        </template>
+        <template data-problem="5" data-md="tests">
+테스트 케이스가 제공되지 않았다.
+        </template>
+        <template data-problem="5" data-md="solution">
+### 정답 코드 (CPP17)
+
+```cpp
+#include <iostream>
+
+using namespace std;
+
+int main(void)
+{
+    int ch = 0;
+    int arr[5];
+    for (int i = 0; i < 5; i++)
+        cin >> arr[i];
+    int tmp = 1;
+    while (ch < 3)
+    {
+        ch = 0;
+        for(int i = 0; i < 5; i++)
+            if(tmp % arr[i] == 0)
+                ch++;
+        tmp++;
+    }
+    tmp--;
+    cout << tmp;
+}
+```
+        </template>
+        <template data-problem="5" data-md="generator">
+### 생성 코드 (PYTHON3)
+
+```python
+import random
+
+num_pool = list(range(1, 101))
+random.shuffle(num_pool)
+
+print(' '.join(map(str, num_pool[:5])))
+```
+        </template>
         <template data-problem="2" data-md="meta">
 ---
 title: C. 단어 공부
@@ -246,12 +333,22 @@ difficulty: MID
         <template data-problem="2" data-md="samples">
 ### 예제 입력 1
 ```text
-SAMPLES_JSON:["Hansung","Science"]
+Hansung
 ```
 
 ### 예제 출력 1
 ```text
-SAMPLES_JSON:["N","?"]
+N
+```
+
+### 예제 입력 2
+```text
+Science
+```
+
+### 예제 출력 2
+```text
+?
 ```
         </template>
         <template data-problem="2" data-md="tests">
@@ -536,10 +633,169 @@ int main(int argc, char* argv[])
 }
 ```
         </template>
+        <template data-problem="4" data-md="meta">
+---
+title: D. 점프왕이 되고 싶어
+timeLimitMs: 2000
+memoryLimitMb: 128
+difficulty: MID_HIGH
+---
+        </template>
+        <template data-problem="4" data-md="problem">
+지완이는 점프를 매우 잘한다. 세상에서 점프를 제일 잘하는 사람인 **점프왕**이 되기 위해 지완이는 다음의 테스트를 통과해야한다.
+
+$1.$ 지완이는 가로와 세로의 칸 수가 같은 정사각형의 구역 내부에서만 움직일 수 있다. 지완이가 정사각형 구역의 외부로 나가는 경우엔 바닥으로 떨어져 즉시 테스트에서 탈락하게 된다.
+
+$2.$ 지완이의 출발점은 항상 정사각형의 가장 왼쪽, 가장 위의 칸이다. 다른 출발점에서는 출발하지 않는다.
+
+$3.$ 지완이가 이동 가능한 방향은 오른쪽과 아래 뿐이다. 위쪽과 왼쪽으로는 이동할 수 없다.
+
+$4.$ 지완이가 가장 오른쪽, 가장 아래 칸에 도달하는 순간, 그 즉시 테스트를 통과한다.
+
+$5.$ 지완이가 한 번에 이동할 수 있는 칸의 수는, 현재 밟고 있는 칸에 쓰여 있는 수 만큼이다. 칸에 쓰여 있는 수 초과나 그 미만으로 이동할 수 없다.
+
+점프를 잘하는 지완이는 계속 테스트를 진행해 마침내 최종 단계에 도달했다. 하지만, 테스트를 진행하는 구역이 너무 넓어져버린 나머지, 통과할 수 있는지 없는지 가늠할 수 없어졌다. 지완이는 당신에게 주어진 구역에서 테스트를 통과할 수 있는지 알아봐 달라고 부탁했다. 지완이가 마지막 테스트를 통과하고 **점프왕**이 될 수 있는지 알아보자.
+
+### 입력
+첫째 줄에는 테스트 구역의 크기 $N (2 ≤ N ≤ 3)$이 주어진다.
+
+둘째 줄부터 마지막 줄까지 테스트 구역(맵)이 주어진다.
+
+맵의 통과 지점(오른쪽 맨 아래 칸)에는 $-1$이 쓰여있고, 나머지 칸에는 $0$ 이상 $100$ 이하의 정수가 쓰여있다.
+
+### 출력
+지완이가 끝 점에 도달하여 테스트를 통과할 수 있으면 “Happy”(인용부호 없이), 도달할 수 없으면 “Sad” (인용부호 없이)를 첫째 줄에 출력한다.
+        </template>
+        <template data-problem="4" data-md="samples">
+### 예제 입력 1
+```text
+3
+1 1 10
+1 5 1
+2 2 -1
+```
+
+### 예제 출력 1
+```text
+Happy
+```
+
+### 예제 입력 2
+```text
+3
+2 2 1
+2 2 2
+1 2 -1
+```
+
+### 예제 출력 2
+```text
+Sad
+```
+        </template>
+        <template data-problem="4" data-md="tests">
+테스트 케이스가 제공되지 않았다.
+        </template>
+        <template data-problem="4" data-md="solution">
+### 정답 코드 (CPP17)
+
+```cpp
+#include <iostream>
+#include <queue>
+#define f first
+#define s second
+
+using namespace std;
+
+int map[3][3];
+int n;
+
+string dfs()
+{
+	queue<pair<int, int>>v;
+	v.push(make_pair(0, 0));
+	int step;
+	int x;
+	int y;
+	while (!v.empty())
+	{
+        auto t = v.front();
+		x = t.f; y = t.s;
+        v.pop();
+		step = map[x][y];
+		if (step == -1)
+		{
+			return "Happy";
+		}
+		if (step == 0) continue;
+
+		if (x + step < n)
+		{
+			v.push(make_pair(x + step, y));
+		}
+		if (y + step < n)
+		{
+			v.push(make_pair(x, y + step));
+		}
+		
+	}
+
+	return "Sad";
+}
+
+int main()
+{
+	ios::sync_with_stdio(false);
+	cin.tie(0);
+	cout.tie(0);
+	cin >> n;
+	for (int i = 0; i < n; i++)
+	{
+		for (int j = 0; j < n; j++)
+		{
+			cin >> map[j][i];
+		}
+	}
+	cout << dfs();
+	return 0;
+}
+```
+        </template>
+        <template data-problem="4" data-md="generator">
+### 생성 코드 (JAVA11)
+
+```java
+import java.util.Random;
+
+public class Main {
+    public static void main(String[] args) {
+        StringBuilder sb = new StringBuilder();
+        Random random = new Random();
+        int N = random.nextInt(2) + 2;
+        sb.append(N).append("\n");
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                if (i == N - 1 && j == N - 1) {
+                    sb.append(-1);
+                } else {
+                    int M = random.nextInt(101);
+                    sb.append(M);
+                }
+                if (j < N - 1) {
+                    sb.append(" ");
+                }
+            }
+            sb.append("\n");
+        }
+        System.out.print(sb);
+    }
+}
+```
+        </template>
         <template data-problem="3" data-md="meta">
 ---
 title: E. 한세전 연습
-timeLimitMs: 2000
+timeLimitMs: 1000
 memoryLimitMb: 256
 difficulty: VERY_HIGH
 ---
@@ -558,7 +814,7 @@ $N$개의 기둥의 좌표가 주어졌을 때, 가장 멀리 떨어진 두 기�
 첫째 줄에 가장 먼 기둥 사이의 거리를 제곱하여 출력한다.
 
 ### 힌트
-볼록 껍질과 회전하는 캘리퍼스 알고리즘을 사용하여 해결할 수 있다.
+볼록 껍질 알고리즘을 사용하여 해결할 수 있다.
         </template>
         <template data-problem="3" data-md="samples">
 ### 예제 입력 1
@@ -884,225 +1140,7 @@ int main(int argc, char* argv[])
 }
 ```
         </template>
-        <template data-problem="4" data-md="meta">
----
-title: D. 점프왕이 되고 싶어
-timeLimitMs: 2000
-memoryLimitMb: 128
-difficulty: MID_HIGH
----
-        </template>
-        <template data-problem="4" data-md="problem">
-지완이는 점프를 매우 잘한다. 세상에서 점프를 제일 잘하는 사람인 **점프왕**이 되기 위해 지완이는 다음의 테스트를 통과해야한다.
 
-$1.$ 지완이는 가로와 세로의 칸 수가 같은 정사각형의 구역 내부에서만 움직일 수 있다. 지완이가 정사각형 구역의 외부로 나가는 경우엔 바닥으로 떨어져 즉시 테스트에서 탈락하게 된다.
-
-$2.$ 지완이의 출발점은 항상 정사각형의 가장 왼쪽, 가장 위의 칸이다. 다른 출발점에서는 출발하지 않는다.
-
-$3.$ 지완이가 이동 가능한 방향은 오른쪽과 아래 뿐이다. 위쪽과 왼쪽으로는 이동할 수 없다.
-
-$4.$ 지완이가 가장 오른쪽, 가장 아래 칸에 도달하는 순간, 그 즉시 테스트를 통과한다.
-
-$5.$ 지완이가 한 번에 이동할 수 있는 칸의 수는, 현재 밟고 있는 칸에 쓰여 있는 수 만큼이다. 칸에 쓰여 있는 수 초과나 그 미만으로 이동할 수 없다.
-
-점프를 잘하는 지완이는 계속 테스트를 진행해 마침내 최종 단계에 도달했다. 하지만, 테스트를 진행하는 구역이 너무 넓어져버린 나머지, 통과할 수 있는지 없는지 가늠할 수 없어졌다. 지완이는 당신에게 주어진 구역에서 테스트를 통과할 수 있는지 알아봐 달라고 부탁했다. 지완이가 마지막 테스트를 통과하고 **점프왕**이 될 수 있는지 알아보자.
-
-### 입력
-첫째 줄에는 테스트 구역의 크기 $N (2 ≤ N ≤ 3)$이 주어진다.
-
-둘째 줄부터 마지막 줄까지 테스트 구역(맵)이 주어진다.
-
-맵의 통과 지점(오른쪽 맨 아래 칸)에는 $-1$이 쓰여있고, 나머지 칸에는 $0$ 이상 $100$ 이하의 정수가 쓰여있다.
-
-### 출력
-지완이가 끝 점에 도달하여 테스트를 통과할 수 있으면 “Happy”(인용부호 없이), 도달할 수 없으면 “Sad” (인용부호 없이)를 첫째 줄에 출력한다.
-        </template>
-        <template data-problem="4" data-md="samples">
-### 예제 입력 1
-```text
-SAMPLES_JSON:["3\n1 1 10\n1 5 1\n2 2 -1","3\n2 2 1\n2 2 2\n1 2 -1"]
-```
-
-### 예제 출력 1
-```text
-SAMPLES_JSON:["Happy","Sad"]
-```
-        </template>
-        <template data-problem="4" data-md="tests">
-테스트 케이스가 제공되지 않았다.
-        </template>
-        <template data-problem="4" data-md="solution">
-### 정답 코드 (CPP17)
-
-```cpp
-#include <iostream>
-#include <queue>
-#define f first
-#define s second
-
-using namespace std;
-
-int map[3][3];
-int n;
-
-string dfs()
-{
-	queue<pair<int, int>>v;
-	v.push(make_pair(0, 0));
-	int step;
-	int x;
-	int y;
-	while (!v.empty())
-	{
-        auto t = v.front();
-		x = t.f; y = t.s;
-        v.pop();
-		step = map[x][y];
-		if (step == -1)
-		{
-			return "Happy";
-		}
-		if (step == 0) continue;
-
-		if (x + step < n)
-		{
-			v.push(make_pair(x + step, y));
-		}
-		if (y + step < n)
-		{
-			v.push(make_pair(x, y + step));
-		}
-		
-	}
-
-	return "Sad";
-}
-
-int main()
-{
-	ios::sync_with_stdio(false);
-	cin.tie(0);
-	cout.tie(0);
-	cin >> n;
-	for (int i = 0; i < n; i++)
-	{
-		for (int j = 0; j < n; j++)
-		{
-			cin >> map[j][i];
-		}
-	}
-	cout << dfs();
-	return 0;
-}
-```
-        </template>
-        <template data-problem="4" data-md="generator">
-### 생성 코드 (JAVA11)
-
-```java
-import java.util.Random;
-
-public class Main {
-    public static void main(String[] args) {
-        StringBuilder sb = new StringBuilder();
-        Random random = new Random();
-        int N = random.nextInt(2) + 2;
-        sb.append(N).append("\n");
-        for (int i = 0; i < N; i++) {
-            for (int j = 0; j < N; j++) {
-                if (i == N - 1 && j == N - 1) {
-                    sb.append(-1);
-                } else {
-                    int M = random.nextInt(101);
-                    sb.append(M);
-                }
-                if (j < N - 1) {
-                    sb.append(" ");
-                }
-            }
-            sb.append("\n");
-        }
-        System.out.print(sb);
-    }
-}
-```
-        </template>
-        <template data-problem="5" data-md="meta">
----
-title: B. 최소공배수??
-timeLimitMs: 2000
-memoryLimitMb: 128
-difficulty: MID
----
-        </template>
-        <template data-problem="5" data-md="problem">
-ESC 입학 시험 문제를 만들고 있는 동하는 참고할 문제 예시를 찾던 중, 각 문제의 정답 비율을 이용한 새로운 게임을 만들었다. 바로 **최소공배수??** 찾기이다.
-
-**최소공배수??** 란  동하가 찾은 5개의 예시 문제의 정답 비율 중 적어도 세 개로 나누어지는 가장 작은 자연수이다.
-
-동하는 이 게임을 재훈이와 함께 하려고 한다. 동하가 재훈이를 이길 수 있도록 **최소공배수??** 를 찾는 프로그램을 만들어주자.
-
-### 입력
-첫째 줄에 다섯 개의 정답 비율이 주어진다. 정답 비율의 값은 $100$보다 작거나 같은 자연수이고, 서로 다른 수이다.
-
-### 출력
-첫째 줄에 입력에 대한 **최소공배수??** 를 출력한다.
-        </template>
-        <template data-problem="5" data-md="samples">
-### 예제 입력 1
-```text
-SAMPLES_JSON:["1 2 3 4 5","30 42 70 35 90"]
-```
-
-### 예제 출력 1
-```text
-SAMPLES_JSON:["4","210"]
-```
-        </template>
-        <template data-problem="5" data-md="tests">
-테스트 케이스가 제공되지 않았다.
-        </template>
-        <template data-problem="5" data-md="solution">
-### 정답 코드 (CPP17)
-
-```cpp
-#include <iostream>
-
-using namespace std;
-
-int main(void)
-{
-    int ch = 0;
-    int arr[5];
-    for (int i = 0; i < 5; i++)
-        cin >> arr[i];
-    int tmp = 1;
-    while (ch < 3)
-    {
-        ch = 0;
-        for(int i = 0; i < 5; i++)
-            if(tmp % arr[i] == 0)
-                ch++;
-        tmp++;
-    }
-    tmp--;
-    cout << tmp;
-}
-```
-        </template>
-        <template data-problem="5" data-md="generator">
-### 생성 코드 (PYTHON3)
-
-```python
-import random
-
-num_pool = list(range(1, 101))
-random.shuffle(num_pool)
-
-print(' '.join(map(str, num_pool[:5])))
-```
-        </template>
-
-        <script defer src="app.js"></script>
+<script defer src="app.js"></script>
     </body>
 </html>

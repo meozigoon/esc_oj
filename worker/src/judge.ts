@@ -10,6 +10,12 @@ export type JudgeResult = {
     failedTestcaseOrd?: number | null;
 };
 
+export type JudgeProgress = {
+    current: number;
+    total: number;
+    percent: number;
+};
+
 export type RunResult = {
     status: SubmissionStatus;
     message: string;
@@ -380,6 +386,28 @@ function averageStats(stats: AggregateStats): {
     };
 }
 
+function createProgressReporter(
+    total: number,
+    onProgress?: (progress: JudgeProgress) => Promise<void> | void
+) {
+    let lastPercent = -1;
+    return async (current: number) => {
+        if (!onProgress || total <= 0) {
+            return;
+        }
+        const percent = Math.min(100, Math.floor((current / total) * 100));
+        if (percent === lastPercent) {
+            return;
+        }
+        lastPercent = percent;
+        try {
+            await onProgress({ current, total, percent });
+        } catch {
+            // ignore progress update failures
+        }
+    };
+}
+
 async function createVolume(volumeName: string): Promise<void> {
     const result = await runProcess("docker", ["volume", "create", volumeName]);
     if (result.code !== 0) {
@@ -621,6 +649,7 @@ export async function judgeSubmission(options: {
     problem: Problem;
     testcases: TestcaseInput[];
     image: string;
+    onProgress?: (progress: JudgeProgress) => Promise<void> | void;
 }): Promise<JudgeResult> {
     if (options.problem.submissionType === "TEXT") {
         const expectedRaw = options.problem.textAnswer ?? "";
@@ -712,7 +741,13 @@ export async function judgeSubmission(options: {
         volumesToCleanup.push(submissionProgram.volumeName);
 
         if (!useGeneratedTests) {
-            for (const testcase of options.testcases) {
+            const total = options.testcases.length;
+            const reportProgress = createProgressReporter(
+                total,
+                options.onProgress
+            );
+            for (let index = 0; index < total; index += 1) {
+                const testcase = options.testcases[index];
                 const start = Date.now();
                 const runResult = await runProgram({
                     program: submissionProgram,
@@ -724,6 +759,7 @@ export async function judgeSubmission(options: {
                 const elapsed = Date.now() - start;
                 recordStats(stats, elapsed, runResult.memoryKb);
                 const averages = averageStats(stats);
+                await reportProgress(index + 1);
 
                 if (runResult.timedOut || runResult.code === 124) {
                     return {
@@ -884,6 +920,10 @@ export async function judgeSubmission(options: {
             0,
             generatedTestcaseCount
         );
+        const reportProgress = createProgressReporter(
+            generatedTestcases.length,
+            options.onProgress
+        );
 
         const solutionPrepared = await prepareProgram({
             submissionId: options.submissionId,
@@ -952,6 +992,7 @@ export async function judgeSubmission(options: {
             const elapsed = Date.now() - start;
             recordStats(stats, elapsed, submissionRun.memoryKb);
             const averages = averageStats(stats);
+            await reportProgress(index + 1);
 
             if (submissionRun.timedOut || submissionRun.code === 124) {
                 return {

@@ -1,0 +1,4 @@
+{
+    "buildCommand": "node oj-preview/inject-env.js",
+    "outputDirectory": "oj-preview"
+}
