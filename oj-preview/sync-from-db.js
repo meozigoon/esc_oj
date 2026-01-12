@@ -3,7 +3,6 @@ const path = require("path");
 const { PrismaClient } = require("@prisma/client");
 
 const repoRoot = path.resolve(__dirname, "..");
-const previewRoot = path.join(repoRoot, "oj-preview", "content");
 const SAMPLE_LIST_PREFIX = "SAMPLES_JSON:";
 
 function decodeSampleList(raw) {
@@ -79,10 +78,6 @@ function resolveStoredPath(baseDir, storedPath) {
         return storedPath;
     }
     return path.join(baseDir, ...storedPath.split("/"));
-}
-
-async function ensureDir(dirPath) {
-    await fs.mkdir(dirPath, { recursive: true });
 }
 
 async function readTextFile(filePath) {
@@ -289,12 +284,6 @@ async function updateIndexHtml(templateBlock) {
     await fs.writeFile(indexPath, nextHtml, "utf8");
 }
 
-async function writePreviewFile(baseDir, name, content) {
-    await ensureDir(baseDir);
-    const targetPath = path.join(baseDir, name);
-    await fs.writeFile(targetPath, content, "utf8");
-}
-
 async function main() {
     await loadEnv();
     const dataDir = resolveDataDir(process.env.DATA_DIR);
@@ -311,7 +300,6 @@ async function main() {
         const contentById = {};
 
         for (const problem of problems) {
-            const baseDir = path.join(previewRoot, "problems", String(problem.id));
             const statementPath = resolveStoredPath(dataDir, problem.statementPath);
             const statement = await readTextFile(statementPath);
             const problemMd = statement.trim()
@@ -332,16 +320,8 @@ async function main() {
                 solution: solutionMd,
                 generator: generatorMd,
             };
-
-            await writePreviewFile(baseDir, "meta.md", metaMd);
-            await writePreviewFile(baseDir, "problem.md", problemMd);
-            await writePreviewFile(baseDir, "samples.md", samplesMd);
-            await writePreviewFile(baseDir, "tests.md", testsMd);
-            await writePreviewFile(baseDir, "solution.md", solutionMd);
-            await writePreviewFile(baseDir, "generator.md", generatorMd);
         }
 
-        await writePreviewFile(previewRoot, "problem-index.md", problemIndex);
         const templateBlock = createTemplateBlock(
             problemIndex,
             sortedProblems,

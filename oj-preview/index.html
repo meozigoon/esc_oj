@@ -169,13 +169,14 @@
             </main>
             <footer class="footer">ESC OJ 문제 미리보기 전용 페이지</footer>
         </div>
-                        <template data-md="problem-index">
+                                                <template data-md="problem-index">
 # 문제 목록
 - 1 | A. Hello, HSSH 35th! | problems/1
 - 5 | B. 최소공배수?? | problems/5
 - 2 | C. 단어 공부 | problems/2
-- 4 | D. 점프왕이 되고 싶어 | problems/4
-- 3 | E. 한세전 연습 | problems/3
+- 4 | D. 점프의 제왕 | problems/4
+- 6 | E. 전쟁 | problems/6
+- 3 | F. 한세전 연습 | problems/3
         </template>
         <template data-problem="1" data-md="meta">
 ---
@@ -232,7 +233,7 @@ difficulty: MID
 ---
         </template>
         <template data-problem="5" data-md="problem">
-ESC 면접 시험 문제를 만들고 있는 동하는 참고할 문제 예시를 찾던 중, 각 문제의 정답 비율을 이용한 새로운 게임을 만들었다. 바로 **최소공배수??** 찾기이다.
+$ESC$ 면접 시험 문제를 만들고 있는 동하는 참고할 문제 예시를 찾던 중, 각 문제의 정답 비율을 이용한 새로운 게임을 만들었다. 바로 **최소공배수??** 찾기이다.
 
 각 문제의 난이도를 판별할 수 있는 지표 중에서 정답 비율이 있다. 정답 비율은 $1$ 이상, $100$ 이하의 자연수이다.
 
@@ -241,10 +242,13 @@ ESC 면접 시험 문제를 만들고 있는 동하는 참고할 문제 예시�
 동하는 이 게임을 재훈이와 함께 하려고 한다. 동하가 재훈이를 항상 이길 수 있도록 **최소공배수??** 를 찾는 프로그램을 만들어주자.
 
 ### 입력
-첫째 줄에 다섯 개 문제의 정답 비율이 주어진다. 정답 비율의 값은 $100$ 이하의 자연수이고, 서로 다른 수이다.
+첫째 줄에 다섯 개 문제의 정답 비율이 주어진다. 정답 비율의 값은 $100$ 이하의 자연수이고 서로 다른 수이다.
 
 ### 출력
 첫째 줄에 입력에 대한 **최소공배수??** 를 출력한다.
+
+### 힌트
+소인수분해, 유클리드 호제법 등 최소공배수를 구할 필요가 없다.
         </template>
         <template data-problem="5" data-md="samples">
 ### 예제 입력 1
@@ -634,14 +638,14 @@ int main(int argc, char* argv[])
         </template>
         <template data-problem="4" data-md="meta">
 ---
-title: D. 점프왕이 되고 싶어
+title: D. 점프의 제왕
 timeLimitMs: 2000
 memoryLimitMb: 128
 difficulty: MID_HIGH
 ---
         </template>
         <template data-problem="4" data-md="problem">
-지완이는 점프를 매우 잘한다. 세상에서 점프를 제일 잘하는 사람인 **점프왕**이 되기 위해 지완이는 다음의 테스트를 통과해야한다.
+지완이는 점프를 매우 잘한다. 세상에서 점프를 제일 잘하는 사람인 **점프의 제왕**이 되기 위해 지완이는 다음의 테스트를 통과해야한다.
 
 $1.$ 지완이는 가로와 세로의 칸 수가 같은 정사각형의 구역 내부에서만 움직일 수 있다. 지완이가 정사각형 구역의 외부로 나가는 경우엔 바닥으로 떨어져 즉시 테스트에서 탈락하게 된다.
 
@@ -653,7 +657,7 @@ $4.$ 지완이가 가장 오른쪽, 가장 아래 칸에 도달하는 순간, �
 
 $5.$ 지완이가 한 번에 이동할 수 있는 칸의 수는, 현재 밟고 있는 칸에 쓰여 있는 수 만큼이다. 칸에 쓰여 있는 수 초과나 그 미만으로 이동할 수 없다.
 
-점프를 잘하는 지완이는 계속 테스트를 진행해 마침내 최종 단계에 도달했다. 하지만, 테스트를 진행하는 구역이 너무 넓어져버린 나머지, 통과할 수 있는지 없는지 가늠할 수 없어졌다. 지완이는 당신에게 주어진 구역에서 테스트를 통과할 수 있는지 알아봐 달라고 부탁했다. 지완이가 마지막 테스트를 통과하고 **점프왕**이 될 수 있는지 알아보자.
+지완이는 계속 테스트를 진행해 마침내 최종 단계에 도달했다. 하지만 테스트를 진행하는 구역이 너무 넓어져버린 나머지, 통과할 수 있는지 없는지 가늠할 수 없어졌다. 지완이는 당신에게 주어진 구역에서 테스트를 통과할 수 있는지 알아봐 달라고 부탁했다. 지완이가 마지막 테스트를 통과하고 **점프의 제왕**이 될 수 있는지 알아보자.
 
 ### 입력
 첫째 줄에는 테스트 구역의 크기 $N (2 ≤ N ≤ 3)$이 주어진다.
@@ -663,7 +667,7 @@ $5.$ 지완이가 한 번에 이동할 수 있는 칸의 수는, 현재 밟고 �
 맵의 통과 지점(오른쪽 맨 아래 칸)에는 $-1$이 쓰여있고, 나머지 칸에는 $0$ 이상 $100$ 이하의 정수가 쓰여있다.
 
 ### 출력
-지완이가 끝 점에 도달하여 테스트를 통과할 수 있으면 “Happy”(인용부호 없이), 도달할 수 없으면 “Sad” (인용부호 없이)를 첫째 줄에 출력한다.
+지완이가 **점프의 제왕**이 될 수 있으면 $Happy$, 도달할 수 없으면 $Sad$를 첫째 줄에 출력한다.
         </template>
         <template data-problem="4" data-md="samples">
 ### 예제 입력 1
@@ -791,9 +795,604 @@ public class Main {
 }
 ```
         </template>
+        <template data-problem="6" data-md="meta">
+---
+title: E. 전쟁
+timeLimitMs: 8000
+memoryLimitMb: 256
+difficulty: HIGH
+---
+        </template>
+        <template data-problem="6" data-md="problem">
+$ESC$ 나라와 $000$ 나라는 전쟁을 하고 있다. 당신은 ESC 나라에서 000 나라의 진영을 분석하는 일을 맡고 있다.
+
+2차원 평면 위의 $N$곳에 $000$ 나라의 진영이 설치되어 있다. 각 진영마다 하나의 통신탑을 설치해, $i$번째 통신탑은 설치 위치로부터 $R_i$ 이내 거리에 포함되는 모든 지역을 자신의 통신영역 $A_i$로 가지게 된다. 만약 임의의 통신영역 $A_i$와 $A_j$가 닿거나 겹치는 부분이 있다면 진영 $i$와 진영 $j$는 직접적으로 통신이 가능하다. 물론 직접적으로 통신이 가능하지 않더라도, 임의의 지역 $i$와 $j$가 중간에 몇 개의 직접통신을 거쳐서 최종적으로 통신이 가능하다면 $i$와 $j$는 통신이 가능한 것으로 본다.
+
+$000$ 나라의 군사들은 영리해서 통신이 가능한 부대끼리 결집력 있는 하나의 그룹처럼 행동한다. 당신은 이러한 그룹의 개수를 알아내야한다.
+
+### 입력
+첫째 줄에 테스트 케이스의 수를 의미하는 자연수 $T$가 주어진다. 그 다음에는 $T$개의 테스트 케이스가 주어진다.
+
+각각의 테스트 케이스에 대해서 $000$나라의 진영의 숫자 $N (1 ≤ N ≤ 3,000)$이 주어진다. 이어서 $N$줄에 걸쳐 적군 진영의 좌표 $x, y (0 ≤ x, y ≤ 5,000)$, 그리고 해당 진영의 $R (0 ≤ R ≤ 5,000)$이 주어진다. 주어지는 수는 모두 정수이다.
+
+### 출력
+각 테스트 케이스에 대해서 한 줄에 걸쳐 진영의 그룹 개수를 출력한다.
+        </template>
+        <template data-problem="6" data-md="samples">
+### 예제 입력 1
+```text
+2
+2
+0 0 1
+1 0 1
+3
+0 0 1
+2 0 1
+10 0 5
+```
+
+### 예제 출력 1
+```text
+1
+2
+```
+        </template>
+        <template data-problem="6" data-md="tests">
+테스트 케이스가 제공되지 않았다.
+        </template>
+        <template data-problem="6" data-md="solution">
+### 정답 코드 (CPP17)
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <utility>
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+
+using namespace std;
+
+vector<int> link;
+vector<int> linkSize;
+
+class FastInput
+{
+private:
+    static constexpr size_t BUFSZ = 1 << 20;
+    char buf[BUFSZ];
+    size_t idx;
+    size_t sz;
+
+public:
+    FastInput() : idx(0), sz(0)
+    {
+    }
+
+    inline char ReadChar()
+    {
+        if (idx >= sz)
+        {
+            sz = fread(buf, 1, BUFSZ, stdin);
+            idx = 0;
+            if (sz == 0)
+            {
+                return 0;
+            }
+        }
+        return buf[idx++];
+    }
+
+    template <typename T>
+    inline bool ReadInt(T& out)
+    {
+        char c;
+        do
+        {
+            c = ReadChar();
+            if (c == 0)
+            {
+                return false;
+            }
+        } while (c <= ' ');
+
+        bool neg = false;
+        if (c == '-')
+        {
+            neg = true;
+            c = ReadChar();
+        }
+
+        T val = 0;
+        while (c > ' ')
+        {
+            val = val * 10 + (c - '0');
+            c = ReadChar();
+        }
+
+        out = neg ? -val : val;
+        return true;
+    }
+};
+
+class FastOutput
+{
+private:
+    static constexpr size_t BUFSZ = 1 << 20;
+    char buf[BUFSZ];
+    size_t idx;
+
+public:
+    FastOutput() : idx(0)
+    {
+    }
+
+    ~FastOutput()
+    {
+        Flush();
+    }
+
+    inline void Flush()
+    {
+        if (idx)
+        {
+            fwrite(buf, 1, idx, stdout);
+            idx = 0;
+        }
+    }
+
+    inline void PutChar(char c)
+    {
+        if (idx >= BUFSZ)
+        {
+            Flush();
+        }
+        buf[idx++] = c;
+    }
+
+    inline void WriteInt(int v)
+    {
+        if (v == 0)
+        {
+            PutChar('0');
+            return;
+        }
+
+        if (v < 0)
+        {
+            PutChar('-');
+            v = -v;
+        }
+
+        char tmp[16];
+        int n = 0;
+        while (v > 0)
+        {
+            tmp[n++] = char('0' + (v % 10));
+            v /= 10;
+        }
+        while (n--)
+        {
+            PutChar(tmp[n]);
+        }
+    }
+
+    inline void WriteLnInt(int v)
+    {
+        WriteInt(v);
+        PutChar('\n');
+    }
+};
+
+int find(int x)
+
+{
+    int root = x;
+    while (root != link[root])
+    {
+        root = link[root];
+    }
+
+    while (x != root)
+    {
+        int p = link[x];
+        link[x] = root;
+        x = p;
+    }
+    return root;
+}
+
+bool same(int a, int b)
+
+{
+    return (find(a) == find(b));
+}
+
+void unite(int a, int b)
+
+{
+    a = find(a);
+    b = find(b);
+    if (a == b)
+    {
+        return;
+    }
+
+    if (linkSize[a] < linkSize[b])
+    {
+        swap(a, b);
+    }
+    link[b] = a;
+    linkSize[a] += linkSize[b];
+}
+
+static inline __int128 dis(pair<long long, long long> p1, pair<long long, long long> p2)
+
+{
+    long long dx = p1.first - p2.first;
+    long long dy = p1.second - p2.second;
+    return (__int128)dx * dx + (__int128)dy * dy;
+}
+
+int main(void)
+
+{
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr), cout.tie(nullptr);
+
+    FastInput in;
+    FastOutput out;
+
+    int t;
+    in.ReadInt(t);
+
+    while (t--)
+    {
+        int n;
+        in.ReadInt(n);
+
+        vector<long long> r(n);
+        vector<pair<long long, long long>> p(n);
+
+        link.resize(n);
+        linkSize.assign(n, 1);
+        for (int i = 0; i < n; i++)
+        {
+            link[i] = i;
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            long long x, y, rr;
+            in.ReadInt(x);
+            in.ReadInt(y);
+            in.ReadInt(rr);
+            p[i] = {x, y};
+            r[i] = rr;
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            const long long xi = p[i].first;
+            const long long yi = p[i].second;
+            const long long ri = r[i];
+
+            for (int j = i + 1; j < n; j++)
+            {
+                long long dx = xi - p[j].first;
+                long long dy = yi - p[j].second;
+
+                __int128 dist2 = (__int128)dx * dx + (__int128)dy * dy;
+                long long sum = ri + r[j];
+                __int128 sum2 = (__int128)sum * sum;
+
+                if (dist2 <= sum2)
+                {
+                    unite(i, j);
+                }
+            }
+        }
+
+        vector<char> seen(n, 0);
+        int cnt = 0;
+        for (int i = 0; i < n; i++)
+        {
+            int root = find(i);
+            if (!seen[root])
+            {
+                seen[root] = 1;
+                cnt++;
+            }
+        }
+
+        out.WriteLnInt(cnt);
+    }
+
+    out.Flush();
+    return 0;
+}
+```
+        </template>
+        <template data-problem="6" data-md="generator">
+### 생성 코드 (CPP17)
+
+```cpp
+#include <iostream>
+#include <cstdio>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <algorithm>
+#include <chrono>
+
+using namespace std;
+
+struct Circle
+{
+    int x;
+    int y;
+    int r;
+};
+
+static inline uint64_t Fnv1a64(const char* s)
+{
+    uint64_t h = 1469598103934665603ULL;
+    while (*s)
+    {
+        h ^= static_cast<unsigned char>(*s);
+        h *= 1099511628211ULL;
+        s++;
+    }
+    return h;
+}
+
+static inline uint64_t ParseSeed(int argc, char* argv[])
+{
+    if (argc >= 2)
+    {
+        char* end = nullptr;
+        unsigned long long v = strtoull(argv[1], &end, 10);
+        if (end != nullptr && *end == '\0')
+        {
+            return static_cast<uint64_t>(v);
+        }
+        return Fnv1a64(argv[1]);
+    }
+
+    uint64_t t = static_cast<uint64_t>(
+        chrono::high_resolution_clock::now().time_since_epoch().count()
+    );
+    uint64_t m = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&argc));
+    return t ^ (m + 0x9e3779b97f4a7c15ULL);
+}
+
+class FastRng
+{
+private:
+    uint64_t state;
+
+    static inline uint64_t NextU64(uint64_t& x)
+    {
+        x += 0x9e3779b97f4a7c15ULL;
+        uint64_t z = x;
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+        return z ^ (z >> 31);
+    }
+
+public:
+    explicit FastRng(uint64_t seed) : state(seed)
+    {
+    }
+
+    inline uint64_t Next()
+    {
+        return NextU64(state);
+    }
+
+    inline int NextInt(int l, int r)
+    {
+        uint64_t range = static_cast<uint64_t>(static_cast<uint32_t>(r - l)) + 1ULL;
+        uint64_t limit = UINT64_MAX - (UINT64_MAX % range);
+
+        uint64_t x;
+        do
+        {
+            x = Next();
+        } while (x >= limit);
+
+        return l + static_cast<int>(x % range);
+    }
+};
+
+class FastOutput
+{
+private:
+    static constexpr size_t BUFSZ = 1 << 20;
+    char buf[BUFSZ];
+    size_t idx;
+
+public:
+    FastOutput() : idx(0)
+    {
+    }
+
+    ~FastOutput()
+    {
+        Flush();
+    }
+
+    inline void Flush()
+    {
+        if (idx)
+        {
+            fwrite(buf, 1, idx, stdout);
+            idx = 0;
+        }
+    }
+
+    inline void PutChar(char c)
+    {
+        if (idx >= BUFSZ)
+        {
+            Flush();
+        }
+        buf[idx++] = c;
+    }
+
+    inline void WriteInt(int v)
+    {
+        if (v == 0)
+        {
+            PutChar('0');
+            return;
+        }
+
+        if (v < 0)
+        {
+            PutChar('-');
+            v = -v;
+        }
+
+        char tmp[16];
+        int n = 0;
+        while (v > 0)
+        {
+            tmp[n++] = static_cast<char>('0' + (v % 10));
+            v /= 10;
+        }
+        while (n--)
+        {
+            PutChar(tmp[n]);
+        }
+    }
+
+    inline void WriteLnInt(int v)
+    {
+        WriteInt(v);
+        PutChar('\n');
+    }
+
+    inline void WriteTripleLn(int a, int b, int c)
+    {
+        WriteInt(a);
+        PutChar(' ');
+        WriteInt(b);
+        PutChar(' ');
+        WriteInt(c);
+        PutChar('\n');
+    }
+};
+
+static inline int ClampInt(int v, int lo, int hi)
+{
+    if (v < lo)
+    {
+        return lo;
+    }
+    if (v > hi)
+    {
+        return hi;
+    }
+    return v;
+}
+
+int main(int argc, char* argv[])
+
+{
+    ios::sync_with_stdio(false); cin.tie(nullptr), cout.tie(nullptr);
+
+    uint64_t seed = ParseSeed(argc, argv);
+    FastRng rnd(seed);
+    FastOutput out;
+
+    int T = rnd.NextInt(1, 5);
+    out.WriteLnInt(T);
+
+    for (int t = 0; t < T; t++)
+    {
+        int N = rnd.NextInt(1, 10);
+        int K = rnd.NextInt(1, min(N, 3));
+        int Rbound = rnd.NextInt(0, 1000);
+
+        int sz[3] = {0, 0, 0};
+        for (int i = 0; i < K; i++)
+        {
+            sz[i] = 1;
+        }
+        for (int i = 0; i < N - K; i++)
+        {
+            sz[rnd.NextInt(0, K - 1)]++;
+        }
+
+        int centersX[3];
+        int centersY[3];
+
+        // K <= 3 이므로 trig 없이 상수로 각도 배치(원래 코드와 동일한 배치)
+        // i=0: (4500, 2500)
+        // K=2, i=1: (500, 2500)
+        // K=3, i=1: (1500, 4232), i=2: (1500, 768)  (2000*sin(120°)=1732 근사)
+        if (K == 1)
+        {
+            centersX[0] = 4500;
+            centersY[0] = 2500;
+        }
+        else if (K == 2)
+        {
+            centersX[0] = 4500; centersY[0] = 2500;
+            centersX[1] = 500;  centersY[1] = 2500;
+        }
+        else
+        {
+            centersX[0] = 4500; centersY[0] = 2500;
+            centersX[1] = 1500; centersY[1] = 4232;
+            centersX[2] = 1500; centersY[2] = 768;
+        }
+
+        for (int i = 0; i < K; i++)
+        {
+            centersX[i] += rnd.NextInt(-100, 100);
+            centersY[i] += rnd.NextInt(-100, 100);
+            centersX[i] = ClampInt(centersX[i], 0, 5000);
+            centersY[i] = ClampInt(centersY[i], 0, 5000);
+        }
+
+        Circle circles[10];
+        int cnt = 0;
+
+        for (int i = 0; i < K; i++)
+        {
+            int x = centersX[i];
+            int y = centersY[i];
+            for (int j = 0; j < sz[i]; j++)
+            {
+                int r = rnd.NextInt(0, Rbound);
+                circles[cnt++] = {x, y, r};
+            }
+        }
+
+        // Fisher–Yates shuffle
+        for (int i = cnt - 1; i >= 1; i--)
+        {
+            int j = rnd.NextInt(0, i);
+            swap(circles[i], circles[j]);
+        }
+
+        out.WriteLnInt(N);
+        for (int i = 0; i < cnt; i++)
+        {
+            out.WriteTripleLn(circles[i].x, circles[i].y, circles[i].r);
+        }
+    }
+
+    out.Flush();
+    return 0;
+}
+```
+        </template>
         <template data-problem="3" data-md="meta">
 ---
-title: E. 한세전 연습
+title: F. 한세전 연습
 timeLimitMs: 1000
 memoryLimitMb: 256
 difficulty: VERY_HIGH

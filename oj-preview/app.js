@@ -228,20 +228,8 @@ function resolveProblemBasePath(problem) {
     return rawPath.startsWith("content/") ? rawPath : `content/${rawPath}`;
 }
 
-async function loadMarkdownFile(filePath, fallback) {
-    if (window.location.protocol === "file:") {
-        return fallback;
-    }
-    try {
-        const response = await fetch(filePath, { cache: "no-store" });
-        if (!response.ok) {
-            return fallback;
-        }
-        const text = await response.text();
-        return text.trim().length ? text : fallback;
-    } catch (error) {
-        return fallback;
-    }
+async function loadMarkdownFile(_filePath, fallback) {
+    return fallback;
 }
 
 function parseProblemIndex(source) {
