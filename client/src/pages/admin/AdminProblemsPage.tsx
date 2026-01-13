@@ -23,6 +23,7 @@ import {
 } from "../../api";
 import { useAuth } from "../../auth";
 import DifficultyBadge from "../../components/DifficultyBadge";
+import PageHeader from "../../components/PageHeader";
 import Markdown from "../../components/Markdown";
 import { difficultyOptions } from "../../utils/difficulty";
 import {
@@ -71,7 +72,7 @@ export default function AdminProblemsPage() {
     const [judgeMode, setJudgeMode] = useState<JudgeMode>("MANUAL");
     const [textAnswer, setTextAnswer] = useState("");
     const [generatorLanguage, setGeneratorLanguage] = useState<Language | "">(
-        ""
+        "",
     );
     const [generatorCode, setGeneratorCode] = useState("");
     const [solutionLanguage, setSolutionLanguage] = useState<Language | "">("");
@@ -87,8 +88,8 @@ export default function AdminProblemsPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "문제를 불러오지 못했습니다."
-                )
+                        : "문제를 불러오지 못했습니다.",
+                ),
             );
         apiFetch<{ contests: Contest[] }>("/api/contests")
             .then((data) => setContests(data.contests))
@@ -118,18 +119,18 @@ export default function AdminProblemsPage() {
         setSamplePairs((prev) =>
             prev.length > 1
                 ? prev.filter((_, pairIndex) => pairIndex !== index)
-                : prev
+                : prev,
         );
     };
 
     const handleUpdateSamplePair = (
         index: number,
-        next: Partial<SamplePair>
+        next: Partial<SamplePair>,
     ) => {
         setSamplePairs((prev) =>
             prev.map((pair, pairIndex) =>
-                pairIndex === index ? { ...pair, ...next } : pair
-            )
+                pairIndex === index ? { ...pair, ...next } : pair,
+            ),
         );
     };
 
@@ -145,17 +146,17 @@ export default function AdminProblemsPage() {
                 solutionCode.trim().length === 0
             ) {
                 setError(
-                    "생성 코드 채점을 선택한 경우 생성/정답 언어와 코드를 입력해 주세요."
+                    "생성 코드 채점을 선택한 경우 생성/정답 언어와 코드를 입력해 주세요.",
                 );
                 return;
             }
         }
         const normalizedSamples = normalizeSamplePairs(samplePairs);
         const sampleInput = encodeSampleList(
-            normalizedSamples.map((sample) => sample.input)
+            normalizedSamples.map((sample) => sample.input),
         );
         const sampleOutput = encodeSampleList(
-            normalizedSamples.map((sample) => sample.output)
+            normalizedSamples.map((sample) => sample.output),
         );
         try {
             await apiFetch("/api/admin/problems", {
@@ -199,23 +200,18 @@ export default function AdminProblemsPage() {
             fetchAll();
         } catch (err) {
             setError(
-                err instanceof Error ? err.message : "문제 생성에 실패했습니다."
+                err instanceof Error
+                    ? err.message
+                    : "문제 생성에 실패했습니다.",
             );
         }
     };
 
     return (
         <Stack spacing={3}>
-            <Typography variant="h4" fontWeight={700}>
-                Problems
-            </Typography>
+            <PageHeader title="Problems" />
             {error && <Typography color="error">{error}</Typography>}
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Stack spacing={2}>
                         <Typography variant="h6" fontWeight={700}>
@@ -291,7 +287,7 @@ export default function AdminProblemsPage() {
                                                     variant="outlined"
                                                     onClick={() =>
                                                         handleRemoveSamplePair(
-                                                            index
+                                                            index,
                                                         )
                                                     }
                                                     disabled={isReadOnly}
@@ -378,7 +374,7 @@ export default function AdminProblemsPage() {
                                     value={difficulty}
                                     onChange={(e) =>
                                         setDifficulty(
-                                            e.target.value as ProblemDifficulty
+                                            e.target.value as ProblemDifficulty,
                                         )
                                     }
                                     disabled={isReadOnly}
@@ -433,7 +429,7 @@ export default function AdminProblemsPage() {
                                     value={judgeMode}
                                     onChange={(e) =>
                                         setJudgeMode(
-                                            e.target.value as JudgeMode
+                                            e.target.value as JudgeMode,
                                         )
                                     }
                                     disabled={isReadOnly}
@@ -459,7 +455,7 @@ export default function AdminProblemsPage() {
                                     setContestId(
                                         e.target.value === ""
                                             ? ""
-                                            : Number(e.target.value)
+                                            : Number(e.target.value),
                                     )
                                 }
                                 disabled={isReadOnly}
@@ -534,7 +530,7 @@ export default function AdminProblemsPage() {
                                                         e.target.value === ""
                                                             ? ""
                                                             : (e.target
-                                                                  .value as Language)
+                                                                  .value as Language),
                                                     )
                                                 }
                                                 disabled={isReadOnly}
@@ -550,7 +546,7 @@ export default function AdminProblemsPage() {
                                                         >
                                                             {option.label}
                                                         </MenuItem>
-                                                    )
+                                                    ),
                                                 )}
                                             </Select>
                                         </FormControl>
@@ -591,7 +587,7 @@ export default function AdminProblemsPage() {
                                                         e.target.value === ""
                                                             ? ""
                                                             : (e.target
-                                                                  .value as Language)
+                                                                  .value as Language),
                                                     )
                                                 }
                                                 disabled={isReadOnly}
@@ -607,7 +603,7 @@ export default function AdminProblemsPage() {
                                                         >
                                                             {option.label}
                                                         </MenuItem>
-                                                    )
+                                                    ),
                                                 )}
                                             </Select>
                                         </FormControl>
@@ -646,13 +642,7 @@ export default function AdminProblemsPage() {
 
             <Stack spacing={2}>
                 {problems.map((problem) => (
-                    <Card
-                        key={problem.id}
-                        sx={{
-                            borderRadius: 2,
-                            boxShadow: "0 12px 32px rgba(16,24,40,0.08)",
-                        }}
-                    >
+                    <Card key={problem.id}>
                         <CardContent>
                             <Stack spacing={1}>
                                 <Typography variant="h6" fontWeight={700}>

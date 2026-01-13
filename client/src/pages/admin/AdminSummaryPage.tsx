@@ -21,6 +21,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, Contest } from "../../api";
+import PageHeader from "../../components/PageHeader";
 
 type UserSummaryRow = {
     id: number;
@@ -51,7 +52,7 @@ export default function AdminSummaryPage() {
     const [userRows, setUserRows] = useState<UserSummaryRow[]>([]);
     const [problemRows, setProblemRows] = useState<ProblemSummaryRow[]>([]);
     const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[]>(
-        []
+        [],
     );
     const [search, setSearch] = useState("");
     const [error, setError] = useState<string | null>(null);
@@ -65,10 +66,10 @@ export default function AdminSummaryPage() {
         try {
             const [userData, problemData] = await Promise.all([
                 apiFetch<{ rows: UserSummaryRow[] }>(
-                    `/api/admin/summary/by-user?${params.toString()}`
+                    `/api/admin/summary/by-user?${params.toString()}`,
                 ),
                 apiFetch<{ rows: ProblemSummaryRow[] }>(
-                    `/api/admin/summary/by-problem?${params.toString()}`
+                    `/api/admin/summary/by-problem?${params.toString()}`,
                 ),
             ]);
             setUserRows(userData.rows);
@@ -85,7 +86,7 @@ export default function AdminSummaryPage() {
             setError(
                 err instanceof Error
                     ? err.message
-                    : "요약 정보를 불러오지 못했습니다."
+                    : "요약 정보를 불러오지 못했습니다.",
             );
         }
     }, [contestId]);
@@ -104,7 +105,7 @@ export default function AdminSummaryPage() {
         const keyword = search.trim().toLowerCase();
         if (!keyword) return userRows;
         return userRows.filter((row) =>
-            row.username.toLowerCase().includes(keyword)
+            row.username.toLowerCase().includes(keyword),
         );
     }, [search, userRows]);
 
@@ -112,7 +113,7 @@ export default function AdminSummaryPage() {
         const keyword = search.trim().toLowerCase();
         if (!keyword) return problemRows;
         return problemRows.filter((row) =>
-            row.title.toLowerCase().includes(keyword)
+            row.title.toLowerCase().includes(keyword),
         );
     }, [search, problemRows]);
 
@@ -120,22 +121,15 @@ export default function AdminSummaryPage() {
         const keyword = search.trim().toLowerCase();
         if (!keyword) return leaderboardRows;
         return leaderboardRows.filter((row) =>
-            row.username.toLowerCase().includes(keyword)
+            row.username.toLowerCase().includes(keyword),
         );
     }, [leaderboardRows, search]);
 
     return (
         <Stack spacing={3}>
-            <Typography variant="h4" fontWeight={700}>
-                Summary
-            </Typography>
+            <PageHeader title="Summary" />
             {error && <Typography color="error">{error}</Typography>}
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Stack spacing={2}>
                         <Typography variant="h6" fontWeight={700}>
@@ -189,12 +183,7 @@ export default function AdminSummaryPage() {
                 <Tab label="순위" />
             </Tabs>
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     {tab === 0 && (
                         <Box>

@@ -29,6 +29,7 @@ import {
     formatDuration,
     formatMemory,
 } from "../../api";
+import PageHeader from "../../components/PageHeader";
 import StatusChip from "../../components/StatusChip";
 
 const statusOptions: Array<SubmissionStatus | ""> = [
@@ -65,7 +66,7 @@ export default function AdminSubmissionsPage() {
         const nextUserId = searchParams.get("userId") ?? "";
         const statusParam = searchParams.get("status") ?? "";
         const nextStatus = statusOptions.includes(
-            statusParam as SubmissionStatus
+            statusParam as SubmissionStatus,
         )
             ? (statusParam as SubmissionStatus | "")
             : "";
@@ -85,14 +86,14 @@ export default function AdminSubmissionsPage() {
         if (status) params.set("status", status);
         try {
             const data = await apiFetch<{ submissions: Submission[] }>(
-                `/api/admin/submissions?${params.toString()}`
+                `/api/admin/submissions?${params.toString()}`,
             );
             setSubmissions(data.submissions);
         } catch (err) {
             setError(
                 err instanceof Error
                     ? err.message
-                    : "제출을 불러오지 못했습니다."
+                    : "제출을 불러오지 못했습니다.",
             );
         }
     }, [contestId, problemId, status, userId]);
@@ -104,9 +105,9 @@ export default function AdminSubmissionsPage() {
     const hasRunning = useMemo(
         () =>
             submissions.some((submission) =>
-                ["PENDING", "RUNNING"].includes(submission.status)
+                ["PENDING", "RUNNING"].includes(submission.status),
             ),
-        [submissions]
+        [submissions],
     );
 
     useEffect(() => {
@@ -139,7 +140,7 @@ export default function AdminSubmissionsPage() {
         setCodeLoading(true);
 
         apiFetch<{ submission: Submission }>(
-            `/api/submissions/${submission.id}`
+            `/api/submissions/${submission.id}`,
         )
             .then((data) => {
                 if (codeRequestRef.current !== requestId) {
@@ -154,7 +155,7 @@ export default function AdminSubmissionsPage() {
                 setCodeError(
                     err instanceof Error
                         ? err.message
-                        : "코드를 불러오지 못했습니다."
+                        : "코드를 불러오지 못했습니다.",
                 );
             })
             .finally(() => {
@@ -176,17 +177,10 @@ export default function AdminSubmissionsPage() {
 
     return (
         <Stack spacing={3}>
-            <Typography variant="h4" fontWeight={700}>
-                Submissions
-            </Typography>
+            <PageHeader title="Submissions" />
             {error && <Typography color="error">{error}</Typography>}
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Stack spacing={2}>
                         <Typography variant="h6" fontWeight={700}>
@@ -223,7 +217,7 @@ export default function AdminSubmissionsPage() {
                                         setStatus(
                                             e.target.value as
                                                 | SubmissionStatus
-                                                | ""
+                                                | "",
                                         )
                                     }
                                 >
@@ -260,12 +254,7 @@ export default function AdminSubmissionsPage() {
                 </CardContent>
             </Card>
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Table>
                         <TableHead>
@@ -304,7 +293,7 @@ export default function AdminSubmissionsPage() {
                                     <TableCell>
                                         {submission.status === "ACCEPTED"
                                             ? formatDuration(
-                                                  submission.runtimeMs
+                                                  submission.runtimeMs,
                                               )
                                             : "-"}
                                     </TableCell>
@@ -347,7 +336,7 @@ export default function AdminSubmissionsPage() {
                             {selected?.problem?.title ?? "-"} /{" "}
                             {selected?.problem?.submissionType === "TEXT"
                                 ? "TEXT"
-                                : selected?.language ?? "-"}
+                                : (selected?.language ?? "-")}
                         </Typography>
                         {codeLoading ? (
                             <Typography color="text.secondary">

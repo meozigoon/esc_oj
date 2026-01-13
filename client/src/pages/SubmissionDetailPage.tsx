@@ -8,6 +8,7 @@ import {
     formatDuration,
     formatMemory,
 } from "../api";
+import PageHeader from "../components/PageHeader";
 import StatusChip from "../components/StatusChip";
 
 function isAccessError(err: unknown): boolean {
@@ -38,7 +39,7 @@ export default function SubmissionDetailPage() {
         setSubmission(null);
         try {
             const data = await apiFetch<{ submission: Submission }>(
-                `/api/submissions/${submissionId}`
+                `/api/submissions/${submissionId}`,
             );
             setSubmission(data.submission);
         } catch (err) {
@@ -52,7 +53,7 @@ export default function SubmissionDetailPage() {
             setError(
                 err instanceof Error
                     ? err.message
-                    : "제출을 불러오지 못했습니다."
+                    : "제출을 불러오지 못했습니다.",
             );
         }
     }, [submissionId, isValidSubmissionId, navigate]);
@@ -80,7 +81,7 @@ export default function SubmissionDetailPage() {
             return;
         }
         navigate(
-            `/problems/${submission.problem.id}?submissionId=${submission.id}`
+            `/problems/${submission.problem.id}?submissionId=${submission.id}`,
         );
     };
 
@@ -90,51 +91,48 @@ export default function SubmissionDetailPage() {
 
     return (
         <Stack spacing={3}>
-            <Stack spacing={1}>
-                <Typography variant="h4" fontWeight={700}>
-                    제출 #{submission.id}
+            <PageHeader
+                title={`제출 #${submission.id}`}
+                subtitle={`문제: ${submission.problem?.title ?? "-"}`}
+                actions={
+                    <Button
+                        variant="outlined"
+                        onClick={handleEdit}
+                        disabled={!submission.problem?.id}
+                    >
+                        수정
+                    </Button>
+                }
+            />
+            <Stack direction="row" spacing={2} alignItems="center">
+                <StatusChip
+                    status={submission.status}
+                    message={submission.message}
+                />
+                <Typography variant="body2" color="text.secondary">
+                    제출 시각: {formatDateTime(submission.createdAt)}
                 </Typography>
-                <Typography color="text.secondary">
-                    문제: {submission.problem?.title ?? "-"}
-                </Typography>
-                <Button
-                    variant="outlined"
-                    onClick={handleEdit}
-                    disabled={!submission.problem?.id}
-                    sx={{ alignSelf: "flex-start" }}
-                >
-                    수정
-                </Button>
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <StatusChip
-                        status={submission.status}
-                        message={submission.message}
-                    />
+                {isAccepted && (
                     <Typography variant="body2" color="text.secondary">
-                        제출 시각: {formatDateTime(submission.createdAt)}
-                    </Typography>
-                    {isAccepted && (
-                        <Typography variant="body2" color="text.secondary">
-                            실행 시간: {formatDuration(submission.runtimeMs)}
-                        </Typography>
-                    )}
-                    {isAccepted && (
-                        <Typography variant="body2" color="text.secondary">
-                            메모리: {formatMemory(submission.memoryKb)}
-                        </Typography>
-                    )}
-                </Stack>
-                {submission.failedTestcaseOrd && (
-                    <Typography variant="body2" color="error">
-                        실패 테스트케이스: #{submission.failedTestcaseOrd}
+                        실행 시간: {formatDuration(submission.runtimeMs)}
                     </Typography>
                 )}
-                {submission.detail && (
+                {isAccepted && (
                     <Typography variant="body2" color="text.secondary">
-                        상세 로그: {submission.detail}
+                        메모리: {formatMemory(submission.memoryKb)}
                     </Typography>
                 )}
             </Stack>
+            {submission.failedTestcaseOrd && (
+                <Typography variant="body2" color="error">
+                    실패 테스트케이스: #{submission.failedTestcaseOrd}
+                </Typography>
+            )}
+            {submission.detail && (
+                <Typography variant="body2" color="text.secondary">
+                    상세 로그: {submission.detail}
+                </Typography>
+            )}
         </Stack>
     );
 }

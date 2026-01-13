@@ -20,6 +20,7 @@ import {
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useCallback, useEffect, useState } from "react";
 import { AdminUser, apiFetch, formatDateTime, Role } from "../../api";
+import PageHeader from "../../components/PageHeader";
 import { useAuth } from "../../auth";
 
 const roleOptions: Array<{ value: Role; label: string }> = [
@@ -40,7 +41,7 @@ const generatePassword = (length = 6) => {
         globalThis.crypto.getRandomValues(values);
         return Array.from(
             values,
-            (value) => passwordChars[value % passwordChars.length]
+            (value) => passwordChars[value % passwordChars.length],
         ).join("");
     }
     let fallback = "";
@@ -79,8 +80,8 @@ export default function AdminUsersPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "계정을 불러오지 못했습니다."
-                )
+                        : "계정을 불러오지 못했습니다.",
+                ),
             );
     }, []);
 
@@ -105,7 +106,7 @@ export default function AdminUsersPage() {
     const renderPasswordAdornment = (
         visible: boolean,
         toggle: () => void,
-        label: string
+        label: string,
     ) => (
         <InputAdornment position="end">
             <IconButton
@@ -137,7 +138,9 @@ export default function AdminUsersPage() {
             fetchUsers();
         } catch (err) {
             setError(
-                err instanceof Error ? err.message : "계정 생성에 실패했습니다."
+                err instanceof Error
+                    ? err.message
+                    : "계정 생성에 실패했습니다.",
             );
         }
     };
@@ -171,7 +174,7 @@ export default function AdminUsersPage() {
             setPasswordError(
                 err instanceof Error
                     ? err.message
-                    : "비밀번호 변경에 실패했습니다."
+                    : "비밀번호 변경에 실패했습니다.",
             );
         }
     };
@@ -179,7 +182,7 @@ export default function AdminUsersPage() {
     const handleDeleteUser = async (target: AdminUser) => {
         if (
             !confirm(
-                `'${target.username}' 계정을 삭제할까요?\n삭제하면 제출 기록과 접근 로그도 함께 삭제됩니다.`
+                `'${target.username}' 계정을 삭제할까요?\n삭제하면 제출 기록과 접근 로그도 함께 삭제됩니다.`,
             )
         ) {
             return;
@@ -195,24 +198,19 @@ export default function AdminUsersPage() {
             fetchUsers();
         } catch (err) {
             setError(
-                err instanceof Error ? err.message : "계정 삭제에 실패했습니다."
+                err instanceof Error
+                    ? err.message
+                    : "계정 삭제에 실패했습니다.",
             );
         }
     };
 
     return (
         <Stack spacing={3}>
-            <Typography variant="h4" fontWeight={700}>
-                Users
-            </Typography>
+            <PageHeader title="Users" />
             {error && <Typography color="error">{error}</Typography>}
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Stack spacing={2}>
                         <Typography variant="h6" fontWeight={700}>
@@ -241,9 +239,9 @@ export default function AdminUsersPage() {
                                         showCreatePassword,
                                         () =>
                                             setShowCreatePassword(
-                                                (prev) => !prev
+                                                (prev) => !prev,
                                             ),
-                                        "비밀번호"
+                                        "비밀번호",
                                     ),
                                 }}
                             />
@@ -277,9 +275,9 @@ export default function AdminUsersPage() {
                                     showCreateConfirmPassword,
                                     () =>
                                         setShowCreateConfirmPassword(
-                                            (prev) => !prev
+                                            (prev) => !prev,
                                         ),
-                                    "비밀번호 확인"
+                                    "비밀번호 확인",
                                 ),
                             }}
                         />
@@ -315,12 +313,7 @@ export default function AdminUsersPage() {
                 </CardContent>
             </Card>
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Stack spacing={2}>
                         <Typography variant="h6" fontWeight={700}>
@@ -348,7 +341,7 @@ export default function AdminUsersPage() {
                                     setPasswordUserId(
                                         e.target.value === ""
                                             ? ""
-                                            : Number(e.target.value)
+                                            : Number(e.target.value),
                                     )
                                 }
                                 disabled={isReadOnly}
@@ -371,7 +364,7 @@ export default function AdminUsersPage() {
                                 endAdornment: renderPasswordAdornment(
                                     showNewPassword,
                                     () => setShowNewPassword((prev) => !prev),
-                                    "새 비밀번호"
+                                    "새 비밀번호",
                                 ),
                             }}
                         />
@@ -388,9 +381,9 @@ export default function AdminUsersPage() {
                                     showConfirmNewPassword,
                                     () =>
                                         setShowConfirmNewPassword(
-                                            (prev) => !prev
+                                            (prev) => !prev,
                                         ),
-                                    "새 비밀번호 확인"
+                                    "새 비밀번호 확인",
                                 ),
                             }}
                         />
@@ -405,12 +398,7 @@ export default function AdminUsersPage() {
                 </CardContent>
             </Card>
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Table>
                         <TableHead>

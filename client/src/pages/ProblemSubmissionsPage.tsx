@@ -1,8 +1,8 @@
 ﻿import {
-    Box,
     Button,
     Card,
     CardContent,
+    Stack,
     Table,
     TableBody,
     TableCell,
@@ -20,6 +20,7 @@ import {
     formatDuration,
     formatMemory,
 } from "../api";
+import PageHeader from "../components/PageHeader";
 import StatusChip from "../components/StatusChip";
 
 export default function ProblemSubmissionsPage() {
@@ -42,7 +43,7 @@ export default function ProblemSubmissionsPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "문제를 불러오지 못했습니다."
+                        : "문제를 불러오지 못했습니다.",
                 );
             });
     }, [problemId, isValidProblemId]);
@@ -53,7 +54,7 @@ export default function ProblemSubmissionsPage() {
         }
         setError(null);
         apiFetch<{ submissions: Submission[] }>(
-            `/api/submissions?problemId=${problemId}`
+            `/api/submissions?problemId=${problemId}`,
         )
             .then((data) => setSubmissions(data.submissions))
             .catch((err) => {
@@ -61,7 +62,7 @@ export default function ProblemSubmissionsPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "제출을 불러오지 못했습니다."
+                        : "제출을 불러오지 못했습니다.",
                 );
             });
     }, [problemId, isValidProblemId]);
@@ -82,9 +83,9 @@ export default function ProblemSubmissionsPage() {
     const hasRunning = useMemo(
         () =>
             submissions.some((submission) =>
-                ["PENDING", "RUNNING"].includes(submission.status)
+                ["PENDING", "RUNNING"].includes(submission.status),
             ),
-        [submissions]
+        [submissions],
     );
 
     useEffect(() => {
@@ -98,28 +99,21 @@ export default function ProblemSubmissionsPage() {
     }, [fetchSubmissions, hasRunning]);
 
     return (
-        <Box>
-            <Box
-                sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 3,
-                }}
-            >
-                <Typography variant="h4" fontWeight={700}>
-                    {problem ? `${problem.title} 제출 기록` : "제출 기록"}
-                </Typography>
-                {problem && (
-                    <Button
-                        component={Link}
-                        to={`/problems/${problem.id}`}
-                        variant="outlined"
-                    >
-                        문제로 돌아가기
-                    </Button>
-                )}
-            </Box>
+        <Stack spacing={3}>
+            <PageHeader
+                title={problem ? `${problem.title} 제출 기록` : "제출 기록"}
+                actions={
+                    problem ? (
+                        <Button
+                            component={Link}
+                            to={`/problems/${problem.id}`}
+                            variant="outlined"
+                        >
+                            문제로 돌아가기
+                        </Button>
+                    ) : null
+                }
+            />
 
             {error && (
                 <Typography color="error" mb={2}>
@@ -127,12 +121,7 @@ export default function ProblemSubmissionsPage() {
                 </Typography>
             )}
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Table>
                         <TableHead>
@@ -163,15 +152,13 @@ export default function ProblemSubmissionsPage() {
                                     <TableCell>
                                         {submission.status === "ACCEPTED"
                                             ? formatDuration(
-                                                  submission.runtimeMs
+                                                  submission.runtimeMs,
                                               )
                                             : "-"}
                                     </TableCell>
                                     <TableCell>
                                         {submission.status === "ACCEPTED"
-                                            ? formatMemory(
-                                                  submission.memoryKb
-                                              )
+                                            ? formatMemory(submission.memoryKb)
                                             : "-"}
                                     </TableCell>
                                     <TableCell>
@@ -202,6 +189,6 @@ export default function ProblemSubmissionsPage() {
                     </Table>
                 </CardContent>
             </Card>
-        </Box>
+        </Stack>
     );
 }

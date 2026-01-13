@@ -33,6 +33,7 @@ import {
 import { useAuth } from "../auth";
 import Markdown from "../components/Markdown";
 import DifficultyBadge from "../components/DifficultyBadge";
+import PageHeader from "../components/PageHeader";
 import { useThemeMode } from "../themeMode";
 import { buildSamplePairs, getFirstSampleInput } from "../utils/samples";
 
@@ -92,7 +93,7 @@ export default function ProblemDetailPage() {
     const [runError, setRunError] = useState<string | null>(null);
     const [now, setNow] = useState(Date.now());
     const [loadedSubmission, setLoadedSubmission] = useState<Submission | null>(
-        null
+        null,
     );
     const { user } = useAuth();
     const { mode } = useThemeMode();
@@ -115,8 +116,8 @@ export default function ProblemDetailPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "문제를 불러오지 못했습니다."
-                )
+                        : "문제를 불러오지 못했습니다.",
+                ),
             );
     }, [problemId, isValidProblemId]);
 
@@ -192,7 +193,7 @@ export default function ProblemDetailPage() {
                 setSubmitError(
                     err instanceof Error
                         ? err.message
-                        : "제출 코드를 불러오지 못했습니다."
+                        : "제출 코드를 불러오지 못했습니다.",
                 );
             });
     }, [problemId, searchParams, user, isTextProblem, isValidProblemId]);
@@ -237,7 +238,7 @@ export default function ProblemDetailPage() {
             navigate(`/problems/${problem.id}/submissions`);
         } catch (err) {
             setSubmitError(
-                err instanceof Error ? err.message : "제출에 실패했습니다."
+                err instanceof Error ? err.message : "제출에 실패했습니다.",
             );
         } finally {
             setSubmitting(false);
@@ -271,12 +272,12 @@ export default function ProblemDetailPage() {
                         code,
                         input: runInput,
                     }),
-                }
+                },
             );
             setRunResult(data.result);
         } catch (err) {
             setRunError(
-                err instanceof Error ? err.message : "실행에 실패했습니다."
+                err instanceof Error ? err.message : "실행에 실패했습니다.",
             );
         } finally {
             setRunning(false);
@@ -331,27 +332,37 @@ export default function ProblemDetailPage() {
 
     const samples = buildSamplePairs(
         problem.sampleInput,
-        problem.sampleOutput
+        problem.sampleOutput,
     ).filter(
         (sample) =>
-            sample.input.trim().length > 0 ||
-            sample.output.trim().length > 0
+            sample.input.trim().length > 0 || sample.output.trim().length > 0,
     );
     const hasSamples = samples.length > 0;
 
     return (
         <Stack spacing={3}>
-            <Stack spacing={1}>
-                <Typography variant="h4" fontWeight={700}>
-                    {problem.title}
+            <PageHeader
+                title={problem.title}
+                actions={
+                    problem.contestId ? (
+                        <Button
+                            component={Link}
+                            to={`/contests/${problem.contestId}`}
+                            variant="outlined"
+                            size="medium"
+                            sx={{ px: 2.5, py: 0.75, fontWeight: 600 }}
+                        >
+                            문제 목록
+                        </Button>
+                    ) : null
+                }
+            />
+            <Stack direction="row" spacing={1} alignItems="center">
+                <DifficultyBadge difficulty={problem.difficulty} />
+                <Typography color="text.secondary">
+                    시간 제한 {problem.timeLimitMs} ms | 메모리 제한{" "}
+                    {problem.memoryLimitMb} MB
                 </Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                    <DifficultyBadge difficulty={problem.difficulty} />
-                    <Typography color="text.secondary">
-                        시간 제한 {problem.timeLimitMs} ms | 메모리 제한{" "}
-                        {problem.memoryLimitMb} MB
-                    </Typography>
-                </Stack>
             </Stack>
 
             {problem.contest && (
@@ -364,13 +375,8 @@ export default function ProblemDetailPage() {
 
             <Grid container spacing={3}>
                 <Grid item xs={12} md={5}>
-                    <Card
-                        sx={{
-                            borderRadius: 2,
-                            boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                        }}
-                    >
-                        <CardContent>
+                    <Card>
+                        <CardContent sx={{ pl: 4, pr: 3 }}>
                             <Stack spacing={2}>
                                 <Typography variant="h6" fontWeight={700}>
                                     문제 설명
@@ -464,12 +470,7 @@ export default function ProblemDetailPage() {
                     </Card>
                 </Grid>
                 <Grid item xs={12} md={7}>
-                    <Card
-                        sx={{
-                            borderRadius: 2,
-                            boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                        }}
-                    >
+                    <Card>
                         <CardContent>
                             <Stack spacing={2}>
                                 <Stack
@@ -501,7 +502,7 @@ export default function ProblemDetailPage() {
                                                 onChange={(e) =>
                                                     setLanguage(
                                                         e.target
-                                                            .value as Language
+                                                            .value as Language,
                                                     )
                                                 }
                                             >
@@ -513,7 +514,7 @@ export default function ProblemDetailPage() {
                                                         >
                                                             {option.label}
                                                         </MenuItem>
-                                                    )
+                                                    ),
                                                 )}
                                             </Select>
                                         </FormControl>
@@ -544,7 +545,7 @@ export default function ProblemDetailPage() {
                                                         >
                                                             {note}
                                                         </Typography>
-                                                    )
+                                                    ),
                                                 )}
                                             </Stack>
                                         </Box>
@@ -561,7 +562,7 @@ export default function ProblemDetailPage() {
                                 )}
                                 {loadedSubmission &&
                                     errorStatuses.has(
-                                        loadedSubmission.status
+                                        loadedSubmission.status,
                                     ) && (
                                         <Stack spacing={0.5}>
                                             <Typography
@@ -610,7 +611,8 @@ export default function ProblemDetailPage() {
                                                         height: 420,
                                                         display: "flex",
                                                         alignItems: "center",
-                                                        justifyContent: "center",
+                                                        justifyContent:
+                                                            "center",
                                                         color: "text.secondary",
                                                         fontSize: 14,
                                                     }}
@@ -633,8 +635,7 @@ export default function ProblemDetailPage() {
                                                     minimap: {
                                                         enabled: false,
                                                     },
-                                                    scrollBeyondLastLine:
-                                                        false,
+                                                    scrollBeyondLastLine: false,
                                                 }}
                                             />
                                         </Suspense>

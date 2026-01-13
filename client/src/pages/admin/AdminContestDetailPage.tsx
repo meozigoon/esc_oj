@@ -14,6 +14,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiFetch, Contest, ProblemSummary } from "../../api";
 import { useAuth } from "../../auth";
 import DifficultyBadge from "../../components/DifficultyBadge";
+import PageHeader from "../../components/PageHeader";
 
 function toLocalInput(value: string) {
     const date = new Date(value);
@@ -57,12 +58,12 @@ export default function AdminContestDetailPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "대회를 불러오지 못했습니다."
-                )
+                        : "대회를 불러오지 못했습니다.",
+                ),
             );
 
         apiFetch<{ problems: ProblemSummary[] }>(
-            `/api/contests/${contestId}/problems`
+            `/api/contests/${contestId}/problems`,
         )
             .then((data) => setProblems(data.problems))
             .catch(() => undefined);
@@ -81,7 +82,9 @@ export default function AdminContestDetailPage() {
             navigate("/admin/contests");
         } catch (err) {
             setError(
-                err instanceof Error ? err.message : "대회 수정에 실패했습니다."
+                err instanceof Error
+                    ? err.message
+                    : "대회 수정에 실패했습니다.",
             );
         }
     };
@@ -92,12 +95,8 @@ export default function AdminContestDetailPage() {
 
     return (
         <Stack spacing={3}>
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <PageHeader title="대회 편집" subtitle={contest.title} />
+            <Card>
                 <CardContent>
                     <Stack spacing={2}>
                         <Typography variant="h5" fontWeight={700}>
@@ -139,12 +138,7 @@ export default function AdminContestDetailPage() {
                 </CardContent>
             </Card>
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Stack spacing={2}>
                         <Stack

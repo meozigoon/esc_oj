@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { useEffect, useState } from "react";
 import { AccessLog, apiFetch, formatDateTime } from "../../api";
+import PageHeader from "../../components/PageHeader";
 
 export default function AdminAccessLogsPage() {
     const [logs, setLogs] = useState<AccessLog[]>([]);
@@ -24,24 +25,17 @@ export default function AdminAccessLogsPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "접속 기록을 불러오지 못했습니다."
-                )
+                        : "접속 기록을 불러오지 못했습니다.",
+                ),
             );
     }, []);
 
     return (
         <Stack spacing={3}>
-            <Typography variant="h4" fontWeight={700}>
-                Access Logs
-            </Typography>
+            <PageHeader title="Access Logs" />
             {error && <Typography color="error">{error}</Typography>}
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Table>
                         <TableHead>

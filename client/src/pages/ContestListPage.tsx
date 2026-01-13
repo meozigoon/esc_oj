@@ -1,5 +1,4 @@
 ﻿import {
-    Box,
     Button,
     Card,
     CardContent,
@@ -11,6 +10,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, Contest, formatDateTime } from "../api";
 import Countdown from "../components/Countdown";
+import PageHeader from "../components/PageHeader";
 
 export default function ContestListPage() {
     const [contests, setContests] = useState<Contest[]>([]);
@@ -24,21 +24,17 @@ export default function ContestListPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "대회를 불러오지 못했습니다."
-                )
+                        : "대회를 불러오지 못했습니다.",
+                ),
             );
     }, []);
 
     return (
-        <Box>
-            <Stack spacing={1} mb={3}>
-                <Typography variant="h4" fontWeight={700}>
-                    Contests
-                </Typography>
-                <Typography color="text.secondary">
-                    동일 LAN 환경에서 진행되는 로컬 대회 목록입니다.
-                </Typography>
-            </Stack>
+        <Stack spacing={3}>
+            <PageHeader
+                title="Contests"
+                subtitle="동일 LAN 환경에서 진행되는 로컬 대회 목록입니다."
+            />
             {error && (
                 <Typography color="error" mb={2}>
                     {error}
@@ -47,12 +43,7 @@ export default function ContestListPage() {
             <Grid container spacing={3}>
                 {contests.map((contest) => (
                     <Grid item xs={12} md={6} key={contest.id}>
-                        <Card
-                            sx={{
-                                borderRadius: 2,
-                                boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                            }}
-                        >
+                        <Card>
                             <CardContent>
                                 <Stack spacing={2}>
                                     <Typography variant="h6" fontWeight={700}>
@@ -83,6 +74,6 @@ export default function ContestListPage() {
                     </Grid>
                 ))}
             </Grid>
-        </Box>
+        </Stack>
     );
 }

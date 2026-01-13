@@ -169,7 +169,7 @@
             </main>
             <footer class="footer">ESC OJ 문제 미리보기 전용 페이지</footer>
         </div>
-                                                                        <template data-md="problem-index">
+                                                                                <template data-md="problem-index">
 # 문제 목록
 - 1 | A. Hello, HSSH 35th! | problems/1
 - 5 | B. 최소공배수?? | problems/5
@@ -177,6 +177,10 @@
 - 4 | D. 점프의 제왕 | problems/4
 - 6 | E. 전쟁 | problems/6
 - 3 | F. 한세전 연습 | problems/3
+- 8 | G. 인공지능 문제 1 - 이미지1 | problems/8
+- 9 | H. 인공지능 문제 2 - 이미지2 | problems/9
+- 10 | I. 인공지능 문제 3 - 이미지3 | problems/10
+- 11 | J. 인공지능 문제 4 - 이미지4 | problems/11
         </template>
         <template data-problem="1" data-md="meta">
 ---
@@ -804,16 +808,16 @@ difficulty: HIGH
 ---
         </template>
         <template data-problem="6" data-md="problem">
-$ATOMIX$ 나라와 $TOPS$ 나라는 전쟁을 하고 있다. 혼자서 적의 공격을 막기 힘들었던 $ATOMIX$ 나라는 $ESC$ 나라에 적군 진영의 분석을 의뢰했다.
+$ATOMIX$ 나라와 $TOPS$ 나라는 전쟁을 하고 있다. 혼자서 적의 공격을 막기 힘들었던 $ATOMIX$ 나라는 동맹을 맺고 있는 $ESC$ 나라에 적군 진영의 분석을 의뢰했다.
 
 2차원 평면 위의 $N$곳에 $TOPS$ 나라의 진영이 설치되어 있다. 각 진영마다 하나의 통신탑을 설치해, $i$번째 통신탑은 설치 위치로부터 $R_i$ 이내 거리에 포함되는 모든 지역을 자신의 통신영역 $A_i$로 가지게 된다. 만약 임의의 통신영역 $A_i$와 $A_j$가 닿거나 겹치는 부분이 있다면 진영 $i$와 진영 $j$는 직접적으로 통신이 가능하다. 물론 직접적으로 통신이 가능하지 않더라도, 임의의 지역 $i$와 $j$가 중간에 몇 개의 직접통신을 거쳐서 최종적으로 통신이 가능하다면 $i$와 $j$는 통신이 가능한 것으로 본다.
 
-$TOPS$ 나라의 군사들은 *영리*해서 통신이 가능한 부대끼리 결집력 있는 하나의 그룹처럼 행동한다. 당신은 이러한 그룹의 개수를 알아내야한다.
+$TOPS$ 나라의 군사들은 *영리*해서 통신이 가능한 부대끼리 결집력 있는 하나의 그룹처럼 행동한다. 적군의 공격을 막기 위해서는 이러한 그룹의 개수가 필요하다.
 
 ### 입력
 첫째 줄에 테스트 케이스의 수를 의미하는 자연수 $T$가 주어진다. 그 다음에는 $T$개의 테스트 케이스가 주어진다.
 
-각각의 테스트 케이스에 대해서 $TOPS$나라의 진영의 숫자 $N (1 ≤ N ≤ 3,000)$이 주어진다. 이어서 $N$줄에 걸쳐 적군 진영의 좌표 $x, y (0 ≤ x, y ≤ 5,000)$, 그리고 해당 진영의 $R (0 ≤ R ≤ 5,000)$이 주어진다. 주어지는 수는 모두 정수이다.
+각각의 테스트 케이스에 대해서 $TOPS$ 나라의 진영의 숫자 $N (1 ≤ N ≤ 3,000)$이 주어진다. 이어서 $N$줄에 걸쳐 적군 진영의 좌표 $x, y (0 ≤ x, y ≤ 5,000)$, 그리고 해당 진영의 $R (0 ≤ R ≤ 5,000)$이 주어진다. 주어지는 수는 모두 정수이다.
 
 ### 출력
 각 테스트 케이스에 대해서 한 줄에 걸쳐 진영의 그룹 개수를 출력한다.
@@ -1737,6 +1741,124 @@ int main(int argc, char* argv[])
     return 0;
 }
 ```
+        </template>
+        <template data-problem="8" data-md="meta">
+---
+title: G. 인공지능 문제 1 - 이미지1
+timeLimitMs: 1000
+memoryLimitMb: 256
+difficulty: LOW
+---
+        </template>
+        <template data-problem="8" data-md="problem">
+다음 사진에 가장 알맞은 단어를 쓰시오.
+
+<img src="https://esc-oj-preview.vercel.app/imgs/image01.png">
+        </template>
+        <template data-problem="8" data-md="samples">
+예제 입력과 예제 출력이 제공되지 않았다.
+        </template>
+        <template data-problem="8" data-md="tests">
+테스트 케이스가 제공되지 않았다.
+        </template>
+        <template data-problem="8" data-md="solution">
+### 정답
+
+```text
+DNN
+```
+        </template>
+        <template data-problem="8" data-md="generator">
+생성 코드가 제공되지 않았다.
+        </template>
+        <template data-problem="9" data-md="meta">
+---
+title: H. 인공지능 문제 2 - 이미지2
+timeLimitMs: 1000
+memoryLimitMb: 256
+difficulty: LOW_MID
+---
+        </template>
+        <template data-problem="9" data-md="problem">
+다음 사진에 가장 알맞은 단어를 적으시오.
+
+<img src="https://esc-oj-preview.vercel.app/imgs/image02.png">
+        </template>
+        <template data-problem="9" data-md="samples">
+예제 입력과 예제 출력이 제공되지 않았다.
+        </template>
+        <template data-problem="9" data-md="tests">
+테스트 케이스가 제공되지 않았다.
+        </template>
+        <template data-problem="9" data-md="solution">
+### 정답
+
+```text
+CNN
+```
+        </template>
+        <template data-problem="9" data-md="generator">
+생성 코드가 제공되지 않았다.
+        </template>
+        <template data-problem="10" data-md="meta">
+---
+title: I. 인공지능 문제 3 - 이미지3
+timeLimitMs: 1000
+memoryLimitMb: 256
+difficulty: LOW_MID
+---
+        </template>
+        <template data-problem="10" data-md="problem">
+다음 사진에 가장 알맞은 단어를 적으시오.
+
+<img src="https://esc-oj-preview.vercel.app/imgs/image03.png">
+        </template>
+        <template data-problem="10" data-md="samples">
+예제 입력과 예제 출력이 제공되지 않았다.
+        </template>
+        <template data-problem="10" data-md="tests">
+테스트 케이스가 제공되지 않았다.
+        </template>
+        <template data-problem="10" data-md="solution">
+### 정답
+
+```text
+LSTM
+```
+        </template>
+        <template data-problem="10" data-md="generator">
+생성 코드가 제공되지 않았다.
+        </template>
+        <template data-problem="11" data-md="meta">
+---
+title: J. 인공지능 문제 4 - 이미지4
+timeLimitMs: 1000
+memoryLimitMb: 256
+difficulty: HIGH
+---
+        </template>
+        <template data-problem="11" data-md="problem">
+다음 사진에 가장 알맞은 단어를 적고 빈칸을 채우시오.
+
+알맞은 단어, 빈칸1, 빈칸2, 빈칸3, 빈칸4, 빈칸5, 빈칸6 의 형태로 콤마($,$)로 구분하여 작성한다.
+
+<img src="https://esc-oj-preview.vercel.app/imgs/image04.png">
+        </template>
+        <template data-problem="11" data-md="samples">
+예제 입력과 예제 출력이 제공되지 않았다.
+        </template>
+        <template data-problem="11" data-md="tests">
+테스트 케이스가 제공되지 않았다.
+        </template>
+        <template data-problem="11" data-md="solution">
+### 정답
+
+```text
+Decoder-only Transformer, Positional encoding, GELU, Q, K, V, Softmax
+```
+        </template>
+        <template data-problem="11" data-md="generator">
+생성 코드가 제공되지 않았다.
         </template>
 
 <script defer src="app.js"></script>

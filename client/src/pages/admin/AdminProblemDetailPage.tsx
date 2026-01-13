@@ -25,6 +25,7 @@ import {
 } from "../../api";
 import { useAuth } from "../../auth";
 import Markdown from "../../components/Markdown";
+import PageHeader from "../../components/PageHeader";
 import { difficultyOptions } from "../../utils/difficulty";
 import {
     SamplePair,
@@ -56,10 +57,10 @@ const judgeModeOptions: Array<{ value: JudgeMode; label: string }> = [
 const hasGeneratedTests = (value: Problem) => {
     return Boolean(
         value.submissionType === "CODE" &&
-            value.generatorLanguage &&
-            value.solutionLanguage &&
-            (value.generatorCode ?? "").trim().length > 0 &&
-            (value.solutionCode ?? "").trim().length > 0
+        value.generatorLanguage &&
+        value.solutionLanguage &&
+        (value.generatorCode ?? "").trim().length > 0 &&
+        (value.solutionCode ?? "").trim().length > 0,
     );
 };
 
@@ -101,13 +102,13 @@ export default function AdminProblemDetailPage() {
                 });
                 const pairs = buildSamplePairs(
                     data.problem.sampleInput,
-                    data.problem.sampleOutput
+                    data.problem.sampleOutput,
                 );
                 setSamplePairs(
-                    pairs.length > 0 ? pairs : [{ input: "", output: "" }]
+                    pairs.length > 0 ? pairs : [{ input: "", output: "" }],
                 );
                 setJudgeMode(
-                    hasGeneratedTests(data.problem) ? "GENERATED" : "MANUAL"
+                    hasGeneratedTests(data.problem) ? "GENERATED" : "MANUAL",
                 );
             })
             .catch((err) => {
@@ -115,11 +116,11 @@ export default function AdminProblemDetailPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "문제를 불러오지 못했습니다."
+                        : "문제를 불러오지 못했습니다.",
                 );
             });
         apiFetch<{ testcases: Testcase[] }>(
-            `/api/admin/problems/${problemId}/testcases`
+            `/api/admin/problems/${problemId}/testcases`,
         )
             .then((data) => setTestcases(data.testcases))
             .catch((err) => {
@@ -127,7 +128,7 @@ export default function AdminProblemDetailPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "테스트케이스를 불러오지 못했습니다."
+                        : "테스트케이스를 불러오지 못했습니다.",
                 );
             });
         apiFetch<{ contests: Contest[] }>("/api/contests")
@@ -147,18 +148,18 @@ export default function AdminProblemDetailPage() {
         setSamplePairs((prev) =>
             prev.length > 1
                 ? prev.filter((_, pairIndex) => pairIndex !== index)
-                : prev
+                : prev,
         );
     };
 
     const handleUpdateSamplePair = (
         index: number,
-        next: Partial<SamplePair>
+        next: Partial<SamplePair>,
     ) => {
         setSamplePairs((prev) =>
             prev.map((pair, pairIndex) =>
-                pairIndex === index ? { ...pair, ...next } : pair
-            )
+                pairIndex === index ? { ...pair, ...next } : pair,
+            ),
         );
     };
 
@@ -180,17 +181,17 @@ export default function AdminProblemDetailPage() {
                 (problem.solutionCode ?? "").trim().length === 0
             ) {
                 setError(
-                    "생성 코드 채점을 선택한 경우 생성/정답 언어와 코드를 입력해 주세요."
+                    "생성 코드 채점을 선택한 경우 생성/정답 언어와 코드를 입력해 주세요.",
                 );
                 return;
             }
         }
         const normalizedSamples = normalizeSamplePairs(samplePairs);
         const sampleInput = encodeSampleList(
-            normalizedSamples.map((sample) => sample.input)
+            normalizedSamples.map((sample) => sample.input),
         );
         const sampleOutput = encodeSampleList(
-            normalizedSamples.map((sample) => sample.output)
+            normalizedSamples.map((sample) => sample.output),
         );
         try {
             await apiFetch(`/api/admin/problems/${problem.id}`, {
@@ -208,23 +209,25 @@ export default function AdminProblemDetailPage() {
                     submissionType: problem.submissionType,
                     textAnswer: problem.textAnswer ?? "",
                     generatorLanguage: useGeneratedTests
-                        ? problem.generatorLanguage ?? null
+                        ? (problem.generatorLanguage ?? null)
                         : null,
                     generatorCode: useGeneratedTests
-                        ? problem.generatorCode ?? ""
+                        ? (problem.generatorCode ?? "")
                         : "",
                     solutionLanguage: useGeneratedTests
-                        ? problem.solutionLanguage ?? null
+                        ? (problem.solutionLanguage ?? null)
                         : null,
                     solutionCode: useGeneratedTests
-                        ? problem.solutionCode ?? ""
+                        ? (problem.solutionCode ?? "")
                         : "",
                 }),
             });
             fetchAll();
         } catch (err) {
             setError(
-                err instanceof Error ? err.message : "문제 수정에 실패했습니다."
+                err instanceof Error
+                    ? err.message
+                    : "문제 수정에 실패했습니다.",
             );
         }
     };
@@ -247,7 +250,9 @@ export default function AdminProblemDetailPage() {
             navigate("/admin/problems");
         } catch (err) {
             setError(
-                err instanceof Error ? err.message : "문제 삭제에 실패했습니다."
+                err instanceof Error
+                    ? err.message
+                    : "문제 삭제에 실패했습니다.",
             );
         }
     };
@@ -277,7 +282,7 @@ export default function AdminProblemDetailPage() {
             setError(
                 err instanceof Error
                     ? err.message
-                    : "테스트케이스 추가에 실패했습니다."
+                    : "테스트케이스 추가에 실패했습니다.",
             );
         }
     };
@@ -300,14 +305,14 @@ export default function AdminProblemDetailPage() {
                         output: testcase.output,
                         ord: testcase.ord,
                     }),
-                }
+                },
             );
             fetchAll();
         } catch (err) {
             setError(
                 err instanceof Error
                     ? err.message
-                    : "테스트케이스 수정에 실패했습니다."
+                    : "테스트케이스 수정에 실패했습니다.",
             );
         }
     };
@@ -326,14 +331,14 @@ export default function AdminProblemDetailPage() {
         try {
             await apiFetch(
                 `/api/admin/problems/${problemId}/testcases/${testcaseId}`,
-                { method: "DELETE" }
+                { method: "DELETE" },
             );
             fetchAll();
         } catch (err) {
             setError(
                 err instanceof Error
                     ? err.message
-                    : "테스트케이스 삭제에 실패했습니다."
+                    : "테스트케이스 삭제에 실패했습니다.",
             );
         }
     };
@@ -344,17 +349,10 @@ export default function AdminProblemDetailPage() {
 
     return (
         <Stack spacing={3}>
-            <Typography variant="h4" fontWeight={700}>
-                문제 편집
-            </Typography>
+            <PageHeader title="문제 편집" subtitle={problem.title} />
             {error && <Typography color="error">{error}</Typography>}
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Stack spacing={2}>
                         <TextField
@@ -437,7 +435,7 @@ export default function AdminProblemDetailPage() {
                                                     variant="outlined"
                                                     onClick={() =>
                                                         handleRemoveSamplePair(
-                                                            index
+                                                            index,
                                                         )
                                                     }
                                                     disabled={isReadOnly}
@@ -593,7 +591,7 @@ export default function AdminProblemDetailPage() {
                                     value={judgeMode}
                                     onChange={(e) =>
                                         setJudgeMode(
-                                            e.target.value as JudgeMode
+                                            e.target.value as JudgeMode,
                                         )
                                     }
                                     disabled={isReadOnly}
@@ -721,7 +719,7 @@ export default function AdminProblemDetailPage() {
                                                         >
                                                             {option.label}
                                                         </MenuItem>
-                                                    )
+                                                    ),
                                                 )}
                                             </Select>
                                         </FormControl>
@@ -788,7 +786,7 @@ export default function AdminProblemDetailPage() {
                                                         >
                                                             {option.label}
                                                         </MenuItem>
-                                                    )
+                                                    ),
                                                 )}
                                             </Select>
                                         </FormControl>
@@ -839,12 +837,7 @@ export default function AdminProblemDetailPage() {
             </Card>
 
             {problem.submissionType === "CODE" && judgeMode === "MANUAL" ? (
-                <Card
-                    sx={{
-                        borderRadius: 2,
-                        boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                    }}
-                >
+                <Card>
                     <CardContent>
                         <Stack spacing={2}>
                             <Typography variant="h6" fontWeight={700}>
@@ -881,11 +874,11 @@ export default function AdminProblemDetailPage() {
                                                                       ord: Number(
                                                                           e
                                                                               .target
-                                                                              .value
+                                                                              .value,
                                                                       ),
                                                                   }
-                                                                : item
-                                                        )
+                                                                : item,
+                                                        ),
                                                     )
                                                 }
                                                 disabled={isReadOnly}
@@ -894,7 +887,7 @@ export default function AdminProblemDetailPage() {
                                                 variant="outlined"
                                                 onClick={() =>
                                                     handleUpdateTestcase(
-                                                        testcase
+                                                        testcase,
                                                     )
                                                 }
                                                 disabled={isReadOnly}
@@ -905,7 +898,7 @@ export default function AdminProblemDetailPage() {
                                                 color="error"
                                                 onClick={() =>
                                                     handleDeleteTestcase(
-                                                        testcase.id
+                                                        testcase.id,
                                                     )
                                                 }
                                                 disabled={isReadOnly}
@@ -928,8 +921,8 @@ export default function AdminProblemDetailPage() {
                                                                       .target
                                                                       .value,
                                                               }
-                                                            : item
-                                                    )
+                                                            : item,
+                                                    ),
                                                 )
                                             }
                                             disabled={isReadOnly}
@@ -949,8 +942,8 @@ export default function AdminProblemDetailPage() {
                                                                       .target
                                                                       .value,
                                                               }
-                                                            : item
-                                                    )
+                                                            : item,
+                                                    ),
                                                 )
                                             }
                                             disabled={isReadOnly}
@@ -970,7 +963,7 @@ export default function AdminProblemDetailPage() {
                                     setNewOrd(
                                         e.target.value === ""
                                             ? ""
-                                            : Number(e.target.value)
+                                            : Number(e.target.value),
                                     )
                                 }
                                 disabled={isReadOnly}
@@ -1003,12 +996,7 @@ export default function AdminProblemDetailPage() {
                 </Card>
             ) : problem.submissionType === "CODE" &&
               judgeMode === "GENERATED" ? (
-                <Card
-                    sx={{
-                        borderRadius: 2,
-                        boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                    }}
-                >
+                <Card>
                     <CardContent>
                         <Typography color="text.secondary">
                             생성 코드로 테스트케이스를 만들고 정답 코드로
@@ -1017,12 +1005,7 @@ export default function AdminProblemDetailPage() {
                     </CardContent>
                 </Card>
             ) : (
-                <Card
-                    sx={{
-                        borderRadius: 2,
-                        boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                    }}
-                >
+                <Card>
                     <CardContent>
                         <Typography color="text.secondary">
                             텍스트 제출 문제는 테스트케이스를 사용하지 않습니다.

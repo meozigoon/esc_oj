@@ -21,6 +21,7 @@ import {
 } from "../api";
 import Countdown from "../components/Countdown";
 import DifficultyBadge from "../components/DifficultyBadge";
+import PageHeader from "../components/PageHeader";
 
 export default function ContestDetailPage() {
     const { id } = useParams();
@@ -29,7 +30,7 @@ export default function ContestDetailPage() {
     const [contest, setContest] = useState<Contest | null>(null);
     const [problems, setProblems] = useState<ProblemSummary[]>([]);
     const [solvedProblems, setSolvedProblems] = useState<Set<number>>(
-        new Set()
+        new Set(),
     );
     const [error, setError] = useState<string | null>(null);
     const [now, setNow] = useState(Date.now());
@@ -51,20 +52,20 @@ export default function ContestDetailPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "대회를 불러오지 못했습니다."
-                )
+                        : "대회를 불러오지 못했습니다.",
+                ),
             );
 
         apiFetch<{ problems: ProblemSummary[] }>(
-            `/api/contests/${contestId}/problems`
+            `/api/contests/${contestId}/problems`,
         )
             .then((data) => setProblems(data.problems))
             .catch((err) =>
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "문제를 불러오지 못했습니다."
-                )
+                        : "문제를 불러오지 못했습니다.",
+                ),
             );
     }, [contestId, isValidContestId]);
 
@@ -82,7 +83,7 @@ export default function ContestDetailPage() {
             return;
         }
         apiFetch<{ submissions: Submission[] }>(
-            `/api/submissions?mine=1&status=ACCEPTED&contestId=${contestId}`
+            `/api/submissions?mine=1&status=ACCEPTED&contestId=${contestId}`,
         )
             .then((data) => {
                 const next = new Set<number>();
@@ -118,33 +119,23 @@ export default function ContestDetailPage() {
     }
 
     return (
-        <Box>
-            <Stack spacing={2} mb={4}>
-                <Typography variant="h4" fontWeight={700}>
-                    {contest.title}
+        <Stack spacing={3}>
+            <PageHeader
+                title={contest.title}
+                subtitle={`${formatDateTime(contest.startAt)} - ${formatDateTime(contest.endAt)}`}
+            />
+            <Countdown startAt={contest.startAt} endAt={contest.endAt} />
+            {!canSubmit && (
+                <Typography color="error" variant="body2">
+                    현재는 제출할 수 없습니다.
                 </Typography>
-                <Typography color="text.secondary">
-                    {formatDateTime(contest.startAt)} -{" "}
-                    {formatDateTime(contest.endAt)}
-                </Typography>
-                <Countdown startAt={contest.startAt} endAt={contest.endAt} />
-                {!canSubmit && (
-                    <Typography color="error" variant="body2">
-                        현재는 제출할 수 없습니다.
-                    </Typography>
-                )}
-            </Stack>
+            )}
             {error && (
                 <Typography color="error" mb={2}>
                     {error}
                 </Typography>
             )}
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <List disablePadding>
                         {problems.map((problem, index) => {
@@ -191,7 +182,8 @@ export default function ContestDetailPage() {
                                                     시간 제한{" "}
                                                     {problem.timeLimitMs ?? "-"}{" "}
                                                     ms | 메모리 제한{" "}
-                                                    {problem.memoryLimitMb ?? "-"}{" "}
+                                                    {problem.memoryLimitMb ??
+                                                        "-"}{" "}
                                                     MB
                                                 </Typography>
                                             </Stack>
@@ -211,6 +203,6 @@ export default function ContestDetailPage() {
                     </List>
                 </CardContent>
             </Card>
-        </Box>
+        </Stack>
     );
 }

@@ -32,6 +32,10 @@ const paletteByMode: Record<
 
 export function getTheme(mode: PaletteMode) {
     const palette = paletteByMode[mode];
+    const divider =
+        mode === "dark"
+            ? "rgba(148, 163, 184, 0.18)"
+            : "rgba(15, 23, 42, 0.08)";
     return createTheme({
         palette: {
             mode,
@@ -39,17 +43,21 @@ export function getTheme(mode: PaletteMode) {
             secondary: { main: "#f4a261" },
             background: palette.background,
             text: palette.text,
+            divider,
         },
         typography: {
             fontFamily:
                 '"Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
             h1: { fontWeight: 700 },
             h2: { fontWeight: 700 },
-            h3: { fontWeight: 600 },
+            h3: { fontWeight: 700 },
+            h4: { fontWeight: 700 },
+            h5: { fontWeight: 600 },
+            h6: { fontWeight: 600 },
             button: { textTransform: "none", fontWeight: 600 },
         },
         shape: {
-            borderRadius: 8,
+            borderRadius: 12,
         },
         components: {
             MuiPaper: {
@@ -62,8 +70,42 @@ export function getTheme(mode: PaletteMode) {
             MuiButton: {
                 styleOverrides: {
                     root: {
-                        borderRadius: 6,
+                        borderRadius: 10,
                     },
+                    sizeSmall: {
+                        minHeight: 32,
+                        paddingInline: 12,
+                    },
+                    sizeMedium: {
+                        minHeight: 40,
+                        paddingInline: 18,
+                    },
+                    sizeLarge: {
+                        minHeight: 48,
+                        paddingInline: 22,
+                    },
+                },
+            },
+            MuiCard: {
+                styleOverrides: {
+                    root: ({ theme }) => ({
+                        borderRadius: 16,
+                        border: `1px solid ${theme.palette.divider}`,
+                        boxShadow:
+                            theme.palette.mode === "dark"
+                                ? "0 18px 36px rgba(2, 6, 23, 0.55)"
+                                : "0 16px 40px rgba(16, 24, 40, 0.08)",
+                    }),
+                },
+            },
+            MuiCardContent: {
+                styleOverrides: {
+                    root: ({ theme }) => ({
+                        padding: theme.spacing(3),
+                        "&:last-child": {
+                            paddingBottom: theme.spacing(3),
+                        },
+                    }),
                 },
             },
         },

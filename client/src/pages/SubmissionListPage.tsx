@@ -1,8 +1,8 @@
 ﻿import {
-    Box,
     Button,
     Card,
     CardContent,
+    Stack,
     Table,
     TableBody,
     TableCell,
@@ -19,6 +19,7 @@ import {
     formatDuration,
     formatMemory,
 } from "../api";
+import PageHeader from "../components/PageHeader";
 import StatusChip from "../components/StatusChip";
 
 export default function SubmissionListPage() {
@@ -33,27 +34,20 @@ export default function SubmissionListPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "제출을 불러오지 못했습니다."
-                )
+                        : "제출을 불러오지 못했습니다.",
+                ),
             );
     }, []);
 
     return (
-        <Box>
-            <Typography variant="h4" fontWeight={700} mb={3}>
-                내 제출
-            </Typography>
+        <Stack spacing={3}>
+            <PageHeader title="내 제출" />
             {error && (
                 <Typography color="error" mb={2}>
                     {error}
                 </Typography>
             )}
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Table>
                         <TableHead>
@@ -88,15 +82,13 @@ export default function SubmissionListPage() {
                                     <TableCell>
                                         {submission.status === "ACCEPTED"
                                             ? formatDuration(
-                                                  submission.runtimeMs
+                                                  submission.runtimeMs,
                                               )
                                             : "-"}
                                     </TableCell>
                                     <TableCell>
                                         {submission.status === "ACCEPTED"
-                                            ? formatMemory(
-                                                  submission.memoryKb
-                                              )
+                                            ? formatMemory(submission.memoryKb)
                                             : "-"}
                                     </TableCell>
                                     <TableCell>
@@ -123,6 +115,6 @@ export default function SubmissionListPage() {
                     </Table>
                 </CardContent>
             </Card>
-        </Box>
+        </Stack>
     );
 }

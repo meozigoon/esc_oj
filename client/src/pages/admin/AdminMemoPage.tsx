@@ -8,6 +8,7 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch, formatDateTime } from "../../api";
+import PageHeader from "../../components/PageHeader";
 import { useAuth } from "../../auth";
 
 type MemoPayload = {
@@ -32,10 +33,8 @@ export default function AdminMemoPage() {
             })
             .catch((err) =>
                 setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to load memo."
-                )
+                    err instanceof Error ? err.message : "Failed to load memo.",
+                ),
             );
     }, []);
 
@@ -55,15 +54,13 @@ export default function AdminMemoPage() {
                 {
                     method: "PUT",
                     body: JSON.stringify({ content }),
-                }
+                },
             );
             setContent(data.memo.content ?? "");
             setUpdatedAt(data.memo.updatedAt ?? null);
         } catch (err) {
             setError(
-                err instanceof Error
-                    ? err.message
-                    : "Failed to save memo."
+                err instanceof Error ? err.message : "Failed to save memo.",
             );
         } finally {
             setSaving(false);
@@ -72,26 +69,17 @@ export default function AdminMemoPage() {
 
     return (
         <Stack spacing={3}>
-            <Stack spacing={0.5}>
-                <Typography variant="h4" fontWeight={700}>
-                    Memo
-                </Typography>
+            <PageHeader
+                title="Memo"
+                subtitle={`Last updated: ${updatedAt ? formatDateTime(updatedAt) : "-"}`}
+            />
+            {isReadOnly && (
                 <Typography variant="body2" color="text.secondary">
-                    Last updated: {updatedAt ? formatDateTime(updatedAt) : "-"}
+                    Read-only mode.
                 </Typography>
-                {isReadOnly && (
-                    <Typography variant="body2" color="text.secondary">
-                        Read-only mode.
-                    </Typography>
-                )}
-            </Stack>
+            )}
             {error && <Typography color="error">{error}</Typography>}
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Stack spacing={2}>
                         <TextField

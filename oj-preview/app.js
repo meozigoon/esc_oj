@@ -69,7 +69,7 @@ function setText(id, value) {
 async function initContent() {
     const indexSource = await loadMarkdownFile(
         problemIndexFile,
-        markdownMap.get(problemIndexKey) || ""
+        markdownMap.get(problemIndexKey) || "",
     );
     problemList = parseProblemIndex(indexSource);
     if (!problemList.length) {
@@ -105,7 +105,7 @@ function renderProblemList(problems, selectedId) {
         selectNode.innerHTML = "";
         selectNode.onchange = () => {
             const next = problems.find(
-                (problem) => problem.id === selectNode.value
+                (problem) => problem.id === selectNode.value,
             );
             if (next) {
                 void selectProblem(next);
@@ -382,7 +382,7 @@ function renderMarkdown(source) {
             flushBlockquote();
             const level = Math.min(5, headingMatch[1].length + 1);
             html += `<h${level}>${formatInline(
-                headingMatch[2].trim()
+                headingMatch[2].trim(),
             )}</h${level}>`;
             return;
         }
@@ -430,31 +430,93 @@ function renderMarkdown(source) {
 
 function formatInline(text) {
     const mathSegments = [];
+    const codeSegments = [];
+    const imageSegments = [];
     const mathRegex =
         /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\])/g;
-    const placeholder = (index) => `@@MATH${index}@@`;
-    const withPlaceholders = text.replace(mathRegex, (match) => {
-        const token = placeholder(mathSegments.length);
+    const placeholder = (prefix, index) => `@@${prefix}${index}@@`;
+    const extractAttr = (raw, name) => {
+        const regex = new RegExp(
+            `${name}\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`,
+            "i",
+        );
+        const match = regex.exec(raw);
+        if (!match) {
+            return "";
+        }
+        return match[2] ?? match[3] ?? match[4] ?? "";
+    };
+
+    const withMath = text.replace(mathRegex, (match) => {
+        const token = placeholder("MATH", mathSegments.length);
         mathSegments.push(match);
         return token;
     });
 
-    let escaped = escapeHtml(withPlaceholders);
-    escaped = escaped.replace(/`([^`]+)`/g, "<code>$1</code>");
-    escaped = escaped.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, label, url) => {
-        const safeUrl = sanitizeUrl(url);
-        return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+    const withCode = withMath.replace(/`([^`]+)`/g, (_match, code) => {
+        const token = placeholder("CODE", codeSegments.length);
+        codeSegments.push(code);
+        return token;
     });
+
+    const withImageSyntax = withCode.replace(
+        /!\[([^\]]*)\]\(([^)]+)\)/g,
+        (_match, alt, url) => {
+            const safeUrl = sanitizeUrl(url);
+            if (!safeUrl || safeUrl === "#") {
+                return alt ? String(alt) : "";
+            }
+            const token = placeholder("IMG", imageSegments.length);
+            imageSegments.push({ alt: String(alt ?? ""), url: safeUrl });
+            return token;
+        },
+    );
+
+    const withImageTags = withImageSyntax.replace(/<img\s+[^>]*?>/gi, (raw) => {
+        const src = extractAttr(raw, "src");
+        const alt = extractAttr(raw, "alt");
+        const safeUrl = sanitizeUrl(src);
+        if (!safeUrl || safeUrl === "#") {
+            return alt ? String(alt) : "";
+        }
+        const token = placeholder("IMG", imageSegments.length);
+        imageSegments.push({ alt: String(alt ?? ""), url: safeUrl });
+        return token;
+    });
+
+    let escaped = escapeHtml(withImageTags);
+    escaped = escaped.replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        (match, label, url) => {
+            const safeUrl = sanitizeUrl(url);
+            return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+        },
+    );
     escaped = escaped.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     escaped = escaped.replace(/__(.+?)__/g, "<strong>$1</strong>");
     escaped = escaped.replace(/\*(?!\*)([^*]+)\*(?!\*)/g, "<em>$1</em>");
     escaped = escaped.replace(/_(?!_)([^_]+)_(?!_)/g, "<em>$1</em>");
 
+    imageSegments.forEach((segment, index) => {
+        const token = placeholder("IMG", index);
+        const safeAlt = escapeHtml(segment.alt ?? "");
+        const safeUrl = escapeHtml(segment.url ?? "");
+        const tag = `<img src="${safeUrl}" alt="${safeAlt}" loading="lazy">`;
+        escaped = escaped.split(token).join(tag);
+    });
+
+    codeSegments.forEach((segment, index) => {
+        const token = placeholder("CODE", index);
+        const safeSegment = escapeHtml(segment);
+        escaped = escaped.split(token).join(`<code>${safeSegment}</code>`);
+    });
+
     mathSegments.forEach((segment, index) => {
-        const token = placeholder(index);
+        const token = placeholder("MATH", index);
         const safeSegment = escapeHtml(segment);
         escaped = escaped.split(token).join(safeSegment);
     });
+
     return escaped;
 }
 

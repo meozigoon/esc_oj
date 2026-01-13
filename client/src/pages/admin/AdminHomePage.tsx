@@ -1,4 +1,5 @@
 ﻿import { Card, CardContent, Grid, Stack, Typography } from "@mui/material";
+import PageHeader from "../../components/PageHeader";
 import { Link } from "react-router-dom";
 
 const items = [
@@ -37,21 +38,15 @@ const items = [
 
 export default function AdminHomePage() {
     return (
-        <Stack spacing={2}>
-            <Typography variant="h4" fontWeight={700}>
-                Admin Dashboard
-            </Typography>
+        <Stack spacing={3}>
+            <PageHeader title="Admin Dashboard" />
             <Grid container spacing={3}>
                 {items.map((item) => (
                     <Grid item xs={12} md={6} key={item.title}>
                         <Card
                             component={Link}
                             to={item.to}
-                            sx={{
-                                borderRadius: 2,
-                                boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                                textDecoration: "none",
-                            }}
+                            sx={{ textDecoration: "none" }}
                         >
                             <CardContent>
                                 <Typography variant="h6" fontWeight={700}>

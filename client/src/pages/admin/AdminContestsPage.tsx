@@ -7,6 +7,7 @@
     TextField,
     Typography,
 } from "@mui/material";
+import PageHeader from "../../components/PageHeader";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, Contest, formatDateTime } from "../../api";
@@ -25,7 +26,7 @@ export default function AdminContestsPage() {
     const [title, setTitle] = useState("");
     const [startAt, setStartAt] = useState(toLocalInput(new Date()));
     const [endAt, setEndAt] = useState(
-        toLocalInput(new Date(Date.now() + 3600000))
+        toLocalInput(new Date(Date.now() + 3600000)),
     );
     const [error, setError] = useState<string | null>(null);
 
@@ -37,8 +38,8 @@ export default function AdminContestsPage() {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "대회를 불러오지 못했습니다."
-                )
+                        : "대회를 불러오지 못했습니다.",
+                ),
             );
     }, []);
 
@@ -57,7 +58,9 @@ export default function AdminContestsPage() {
             fetchContests();
         } catch (err) {
             setError(
-                err instanceof Error ? err.message : "대회 생성에 실패했습니다."
+                err instanceof Error
+                    ? err.message
+                    : "대회 생성에 실패했습니다.",
             );
         }
     };
@@ -74,24 +77,19 @@ export default function AdminContestsPage() {
             fetchContests();
         } catch (err) {
             setError(
-                err instanceof Error ? err.message : "대회 삭제에 실패했습니다."
+                err instanceof Error
+                    ? err.message
+                    : "대회 삭제에 실패했습니다.",
             );
         }
     };
 
     return (
         <Stack spacing={3}>
-            <Typography variant="h4" fontWeight={700}>
-                Contests
-            </Typography>
+            <PageHeader title="Contests" />
             {error && <Typography color="error">{error}</Typography>}
 
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Stack spacing={2}>
                         <Typography variant="h6" fontWeight={700}>
@@ -138,12 +136,7 @@ export default function AdminContestsPage() {
             <Grid container spacing={3}>
                 {contests.map((contest) => (
                     <Grid item xs={12} md={6} key={contest.id}>
-                        <Card
-                            sx={{
-                                borderRadius: 2,
-                                boxShadow: "0 16px 40px rgba(16,24,40,0.08)",
-                            }}
-                        >
+                        <Card>
                             <CardContent>
                                 <Stack spacing={1}>
                                     <Typography variant="h6" fontWeight={700}>

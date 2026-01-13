@@ -49,7 +49,7 @@ export default function HomePage() {
     const { user, logout } = useAuth();
     const isAdminUser = user?.role === "admin" || user?.role === "viewer";
     const visibleLinks = quickLinks.filter(
-        (link) => !link.requiresAdmin || isAdminUser
+        (link) => !link.requiresAdmin || isAdminUser,
     );
     const handleLogout = async () => {
         try {
@@ -170,14 +170,7 @@ export default function HomePage() {
 
                     return (
                         <Grid item xs={12} md={6} key={link.title}>
-                            <Card
-                                sx={{
-                                    borderRadius: 2,
-                                    boxShadow:
-                                        "0 16px 40px rgba(16,24,40,0.08)",
-                                    height: "100%",
-                                }}
-                            >
+                            <Card sx={{ height: "100%" }}>
                                 <CardContent>
                                     <Stack spacing={1.5}>
                                         <Typography

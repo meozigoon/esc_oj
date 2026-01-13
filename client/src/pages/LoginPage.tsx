@@ -37,7 +37,7 @@ export default function LoginPage() {
             navigate("/contests");
         } catch (err) {
             setError(
-                err instanceof Error ? err.message : "로그인에 실패했습니다."
+                err instanceof Error ? err.message : "로그인에 실패했습니다.",
             );
         } finally {
             setLoading(false);
@@ -46,12 +46,7 @@ export default function LoginPage() {
 
     return (
         <Box sx={{ maxWidth: 420, mx: "auto" }}>
-            <Card
-                sx={{
-                    borderRadius: 2,
-                    boxShadow: "0 20px 50px rgba(16,24,40,0.08)",
-                }}
-            >
+            <Card>
                 <CardContent>
                     <Stack spacing={2} component="form" onSubmit={handleSubmit}>
                         <Typography variant="h5" fontWeight={700}>
