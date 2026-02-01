@@ -27,9 +27,7 @@ export default function Layout() {
     const theme = useTheme();
     const { mode, toggleMode } = useThemeMode();
     const location = useLocation();
-    const githubUrl =
-        import.meta.env.VITE_GITHUB_URL ??
-        "https://github.com/meozigoon/hssh_oj";
+    const githubUrl = import.meta.env.VITE_GITHUB_URL;
     const year = new Date().getFullYear();
     const appBarBg = alpha(
         theme.palette.background.paper,
