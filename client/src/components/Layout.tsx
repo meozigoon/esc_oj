@@ -27,7 +27,8 @@ export default function Layout() {
     const theme = useTheme();
     const { mode, toggleMode } = useThemeMode();
     const location = useLocation();
-    const githubUrl = import.meta.env.VITE_GITHUB_URL;
+    const githubUrl = (import.meta.env.VITE_GITHUB_URL ?? "").trim();
+    const hasGithubUrl = githubUrl.length > 0;
     const year = new Date().getFullYear();
     const appBarBg = alpha(
         theme.palette.background.paper,
@@ -207,15 +208,25 @@ export default function Layout() {
                         <Typography variant="body2" color="text.secondary">
                             © {year} DH.L. All rights reserved.
                         </Typography>
-                        <MuiLink
-                            href={githubUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            underline="hover"
-                            color="text.secondary"
-                        >
-                            GitHub
-                        </MuiLink>
+                        {hasGithubUrl ? (
+                            <MuiLink
+                                href={githubUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                underline="hover"
+                                color="text.secondary"
+                            >
+                                GitHub
+                            </MuiLink>
+                        ) : (
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ opacity: 0.5, cursor: "default" }}
+                            >
+                                GitHub
+                            </Typography>
+                        )}
                     </Box>
                 </Container>
             </Box>
