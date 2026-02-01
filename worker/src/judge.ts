@@ -31,6 +31,8 @@ type ExecResult = {
     stderr: string;
     timedOut: boolean;
     memoryKb?: number | null;
+    stdoutTruncated?: boolean;
+    stderrTruncated?: boolean;
 };
 
 type LanguageConfig = {
@@ -81,6 +83,9 @@ const languageConfigs: Record<Language, LanguageConfig> = {
         run: "mono Main.exe",
     },
 };
+
+const DEFAULT_STDOUT_LIMIT_BYTES = 4 * 1024 * 1024;
+const DEFAULT_STDERR_LIMIT_BYTES = 2 * 1024 * 1024;
 
 function normalizeOutput(value: string): string {
     return value.replace(/\r\n?/g, "\n");
@@ -193,7 +198,11 @@ async function runProcess(
     command: string,
     args: string[],
     input?: string,
-    timeoutMs?: number
+    timeoutMs?: number,
+    limits: { stdout: number; stderr: number } = {
+        stdout: DEFAULT_STDOUT_LIMIT_BYTES,
+        stderr: DEFAULT_STDERR_LIMIT_BYTES,
+    }
 ): Promise<ExecResult> {
     return new Promise((resolve) => {
         let resolved = false;
@@ -201,16 +210,48 @@ async function runProcess(
             stdio: ["pipe", "pipe", "pipe"],
         });
 
-        let stdout = "";
-        let stderr = "";
+        const stdoutState = {
+            value: "",
+            size: 0,
+            truncated: false,
+        };
+        const stderrState = {
+            value: "",
+            size: 0,
+            truncated: false,
+        };
         let timedOut = false;
 
+        const appendLimited = (
+            state: { value: string; size: number; truncated: boolean },
+            data: Buffer,
+            limit: number
+        ) => {
+            if (limit <= 0) {
+                state.truncated = true;
+                return;
+            }
+            if (state.size >= limit) {
+                state.truncated = true;
+                return;
+            }
+            const remaining = limit - state.size;
+            if (data.length > remaining) {
+                state.value += data.subarray(0, remaining).toString();
+                state.size = limit;
+                state.truncated = true;
+                return;
+            }
+            state.value += data.toString();
+            state.size += data.length;
+        };
+
         child.stdout.on("data", (data) => {
-            stdout += data.toString();
+            appendLimited(stdoutState, data, limits.stdout);
         });
 
         child.stderr.on("data", (data) => {
-            stderr += data.toString();
+            appendLimited(stderrState, data, limits.stderr);
         });
 
         if (input !== undefined) {
@@ -236,9 +277,11 @@ async function runProcess(
             resolved = true;
             resolve({
                 code: -1,
-                stdout,
-                stderr: `${stderr}${err.message}`,
+                stdout: stdoutState.value,
+                stderr: `${stderrState.value}${err.message}`,
                 timedOut,
+                stdoutTruncated: stdoutState.truncated,
+                stderrTruncated: stderrState.truncated,
             });
         });
 
@@ -250,7 +293,14 @@ async function runProcess(
                 return;
             }
             resolved = true;
-            resolve({ code: code ?? -1, stdout, stderr, timedOut });
+            resolve({
+                code: code ?? -1,
+                stdout: stdoutState.value,
+                stderr: stderrState.value,
+                timedOut,
+                stdoutTruncated: stdoutState.truncated,
+                stderrTruncated: stderrState.truncated,
+            });
         });
     });
 }
@@ -384,6 +434,20 @@ function averageStats(stats: AggregateStats): {
                 ? Math.round(stats.memoryTotalKb / stats.memorySamples)
                 : null,
     };
+}
+
+function buildOutputLimitDetail(result: ExecResult): string {
+    const targets: string[] = [];
+    if (result.stdoutTruncated) {
+        targets.push("표준 출력");
+    }
+    if (result.stderrTruncated) {
+        targets.push("표준 에러");
+    }
+    if (targets.length === 0) {
+        return "출력 제한을 초과했습니다.";
+    }
+    return `${targets.join(", ")} 출력이 제한을 초과했습니다.`;
 }
 
 function createProgressReporter(
@@ -619,6 +683,16 @@ export async function runSubmission(options: {
                 memoryKb: runResult.memoryKb ?? null,
             };
         }
+        if (runResult.stdoutTruncated || runResult.stderrTruncated) {
+            return {
+                status: SubmissionStatus.RUNTIME_ERROR,
+                message: "출력 제한 초과",
+                stdout: runResult.stdout,
+                stderr: runResult.stderr || buildOutputLimitDetail(runResult),
+                runtimeMs,
+                memoryKb: runResult.memoryKb ?? null,
+            };
+        }
 
         return {
             status: SubmissionStatus.ACCEPTED,
@@ -790,6 +864,16 @@ export async function judgeSubmission(options: {
                         failedTestcaseOrd: testcase.ord,
                     };
                 }
+                if (runResult.stdoutTruncated || runResult.stderrTruncated) {
+                    return {
+                        status: SubmissionStatus.RUNTIME_ERROR,
+                        message: "출력 제한 초과",
+                        detail: buildOutputLimitDetail(runResult),
+                        runtimeMs: averages.runtimeMs,
+                        memoryKb: averages.memoryKb,
+                        failedTestcaseOrd: testcase.ord,
+                    };
+                }
 
                 const expectedRaw = normalizeOutput(testcase.output);
                 const actualRaw = normalizeOutput(runResult.stdout);
@@ -889,6 +973,13 @@ export async function judgeSubmission(options: {
                     detail: formatExecError(generatorRun),
                 };
             }
+            if (generatorRun.stdoutTruncated || generatorRun.stderrTruncated) {
+                return {
+                    status: SubmissionStatus.SYSTEM_ERROR,
+                    message: "테스트케이스 생성 실패",
+                    detail: buildOutputLimitDetail(generatorRun),
+                };
+            }
 
             const batch = parseGeneratedInputs(generatorRun.stdout);
             if (
@@ -898,6 +989,9 @@ export async function judgeSubmission(options: {
                 const remaining =
                     generatedTestcaseCount - generatedInputs.length;
                 generatedInputs.push(...batch.slice(0, remaining));
+            }
+            if (generatedInputs.length >= generatedTestcaseCount) {
+                break;
             }
         }
 
@@ -980,6 +1074,13 @@ export async function judgeSubmission(options: {
                     detail: formatExecError(solutionRun),
                 };
             }
+            if (solutionRun.stdoutTruncated || solutionRun.stderrTruncated) {
+                return {
+                    status: SubmissionStatus.SYSTEM_ERROR,
+                    message: "정답 코드 실행 실패",
+                    detail: buildOutputLimitDetail(solutionRun),
+                };
+            }
 
             const start = Date.now();
             const submissionRun = await runProgram({
@@ -1017,6 +1118,19 @@ export async function judgeSubmission(options: {
                     status: SubmissionStatus.RUNTIME_ERROR,
                     message: "런타임 에러",
                     detail: formatExecError(submissionRun),
+                    runtimeMs: averages.runtimeMs,
+                    memoryKb: averages.memoryKb,
+                    failedTestcaseOrd: ord,
+                };
+            }
+            if (
+                submissionRun.stdoutTruncated ||
+                submissionRun.stderrTruncated
+            ) {
+                return {
+                    status: SubmissionStatus.RUNTIME_ERROR,
+                    message: "출력 제한 초과",
+                    detail: buildOutputLimitDetail(submissionRun),
                     runtimeMs: averages.runtimeMs,
                     memoryKb: averages.memoryKb,
                     failedTestcaseOrd: ord,

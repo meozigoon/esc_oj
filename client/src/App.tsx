@@ -55,7 +55,11 @@ export default function App() {
                     />
                     <Route
                         path="problems/:id"
-                        element={<ProblemDetailPage />}
+                        element={
+                            <RequireAuth>
+                                <ProblemDetailPage />
+                            </RequireAuth>
+                        }
                     />
                     <Route
                         path="problems/:id/submissions"

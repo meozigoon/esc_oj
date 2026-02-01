@@ -54,7 +54,7 @@ export default function ProblemSubmissionsPage() {
         }
         setError(null);
         apiFetch<{ submissions: Submission[] }>(
-            `/api/submissions?problemId=${problemId}`,
+            `/api/submissions?problemId=${problemId}&limit=200`,
         )
             .then((data) => setSubmissions(data.submissions))
             .catch((err) => {

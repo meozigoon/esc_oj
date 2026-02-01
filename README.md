@@ -131,6 +131,8 @@ npm run dev
 
 - 로그인: `/login`
 - 관리자 페이지: `/admin` (admin 또는 viewer만 접근 가능)
+- 문제 상세/제출 관련 페이지는 로그인 필요
+- 대회 문제는 시작 전에는 관리자/뷰어만 열람 가능
 - 관리자 기능:
     - 대회 관리: `/admin/contests`
     - 문제 관리: `/admin/problems`
@@ -153,6 +155,7 @@ npm run dev
 - 전체 출력에서 공백/개행만 다른 경우 `출력 형식 오류(PRESENTATION_ERROR)`로 처리합니다.
 - 텍스트 제출은 공백/개행을 모두 무시하고 정답과 비교합니다.
 - 생성 코드 모드는 생성된 입력과 정답 코드 출력으로 채점합니다.
+- 표준 출력 4MB / 표준 에러 2MB를 초과하면 `출력 제한 초과`로 처리합니다.
 
 ## 채점 샌드박스 정책
 
@@ -160,6 +163,11 @@ npm run dev
 - 네트워크 차단: `--network none`
 - 권한 최소화: `--cap-drop ALL`, `--security-opt no-new-privileges`, `--read-only`
 - 자원 제한: `--memory`, `--cpus`, `--pids-limit`
+
+## 제출 목록 API 페이징
+
+- `/api/submissions`, `/api/admin/submissions`는 `limit`, `offset` 쿼리를 지원합니다.
+- 기본 limit은 200이며 최대 1000까지 허용됩니다.
 
 ## 문제/테스트케이스 파일 저장
 

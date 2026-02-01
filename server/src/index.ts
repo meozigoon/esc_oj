@@ -527,7 +527,7 @@ app.get("/api/contests/:id/problems", requireAuth, async (req, res) => {
     res.json({ problems });
 });
 
-app.get("/api/problems/:id", async (req, res) => {
+app.get("/api/problems/:id", requireAuth, async (req: AuthRequest, res) => {
     const problemId = parsePositiveInt(req.params.id);
     if (!problemId) {
         res.status(400).json({ message: "잘못된 problemId입니다." });
@@ -552,6 +552,15 @@ app.get("/api/problems/:id", async (req, res) => {
     if (!problem) {
         res.status(404).json({ message: "문제를 찾을 수 없습니다." });
         return;
+    }
+    if (problem.contest) {
+        const now = new Date();
+        if (!isAdminRead(req.user?.role) && now < problem.contest.startAt) {
+            res.status(403).json({
+                message: "대회 시작 전에는 문제를 볼 수 없습니다.",
+            });
+            return;
+        }
     }
     const statementMd = await readTextFile(problem.statementPath);
     const { statementPath: _statementPath, ...rest } = problem;
@@ -726,6 +735,8 @@ app.get("/api/submissions", requireAuth, async (req: AuthRequest, res) => {
     const problemId = parsePositiveInt(req.query.problemId);
     const status = req.query.status ? String(req.query.status) : null;
     const userId = parsePositiveInt(req.query.userId);
+    const limit = Math.min(parsePositiveInt(req.query.limit) ?? 200, 1000);
+    const offset = parseNonNegativeInt(req.query.offset) ?? 0;
 
     const isAdmin = req.user?.role === "ADMIN";
 
@@ -755,6 +766,8 @@ app.get("/api/submissions", requireAuth, async (req: AuthRequest, res) => {
     const submissions = await prisma.submission.findMany({
         where,
         orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: offset,
         select: {
             id: true,
             userId: true,
@@ -1692,6 +1705,8 @@ app.get(
         const problemId = parsePositiveInt(req.query.problemId);
         const userId = parsePositiveInt(req.query.userId);
         const status = req.query.status ? String(req.query.status) : null;
+        const limit = Math.min(parsePositiveInt(req.query.limit) ?? 200, 1000);
+        const offset = parseNonNegativeInt(req.query.offset) ?? 0;
 
         const where: {
             contestId?: number;
@@ -1716,6 +1731,8 @@ app.get(
         const submissions = await prisma.submission.findMany({
             where,
             orderBy: { createdAt: "desc" },
+            take: limit,
+            skip: offset,
             select: {
                 id: true,
                 language: true,

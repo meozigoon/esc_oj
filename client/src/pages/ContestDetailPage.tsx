@@ -83,7 +83,7 @@ export default function ContestDetailPage() {
             return;
         }
         apiFetch<{ submissions: Submission[] }>(
-            `/api/submissions?mine=1&status=ACCEPTED&contestId=${contestId}`,
+            `/api/submissions?mine=1&status=ACCEPTED&contestId=${contestId}&limit=1000`,
         )
             .then((data) => {
                 const next = new Set<number>();

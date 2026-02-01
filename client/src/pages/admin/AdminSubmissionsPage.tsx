@@ -84,6 +84,7 @@ export default function AdminSubmissionsPage() {
         if (problemId) params.set("problemId", problemId);
         if (userId) params.set("userId", userId);
         if (status) params.set("status", status);
+        params.set("limit", "200");
         try {
             const data = await apiFetch<{ submissions: Submission[] }>(
                 `/api/admin/submissions?${params.toString()}`,

@@ -28,7 +28,9 @@ export default function SubmissionListPage() {
 
     useEffect(() => {
         setError(null);
-        apiFetch<{ submissions: Submission[] }>("/api/submissions?mine=1")
+        apiFetch<{ submissions: Submission[] }>(
+            "/api/submissions?mine=1&limit=200",
+        )
             .then((data) => setSubmissions(data.submissions))
             .catch((err) =>
                 setError(
