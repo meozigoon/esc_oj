@@ -134,7 +134,7 @@ function createSamples(problem) {
         }))
         .filter(
             (pair) =>
-                pair.input.trim().length > 0 || pair.output.trim().length > 0
+                pair.input.trim().length > 0 || pair.output.trim().length > 0,
         );
     if (!pairs.length) {
         return "예제 입력과 예제 출력이 제공되지 않았다.\n";
@@ -181,12 +181,7 @@ function createSolution(problem) {
         if (!answer) {
             return "정답이 제공되지 않았다.\n";
         }
-        return [
-            "### 정답",
-            "",
-            formatCodeBlock("text", answer),
-            "",
-        ].join("\n");
+        return ["### 정답", "", formatCodeBlock("text", answer), ""].join("\n");
     }
     if (!problem.solutionCode) {
         return "정답 코드가 제공되지 않았다.\n";
@@ -195,7 +190,10 @@ function createSolution(problem) {
     return [
         `### 정답 코드 (${label})`,
         "",
-        formatCodeBlock(languageFence(problem.solutionLanguage), problem.solutionCode),
+        formatCodeBlock(
+            languageFence(problem.solutionLanguage),
+            problem.solutionCode,
+        ),
         "",
     ].join("\n");
 }
@@ -208,7 +206,10 @@ function createGenerator(problem) {
     return [
         `### 생성 코드 (${label})`,
         "",
-        formatCodeBlock(languageFence(problem.generatorLanguage), problem.generatorCode),
+        formatCodeBlock(
+            languageFence(problem.generatorLanguage),
+            problem.generatorCode,
+        ),
         "",
     ].join("\n");
 }
@@ -216,7 +217,9 @@ function createGenerator(problem) {
 function createProblemIndex(problems) {
     const lines = ["# 문제 목록"];
     for (const problem of problems) {
-        lines.push(`- ${problem.id} | ${problem.title} | problems/${problem.id}`);
+        lines.push(
+            `- ${problem.id} | ${problem.title} | problems/${problem.id}`,
+        );
     }
     return `${lines.join("\n")}\n`;
 }
@@ -256,7 +259,7 @@ function createTemplateBlock(problemIndex, problems, contentById) {
         for (const [key, value] of Object.entries(content)) {
             const safeValue = value.trimEnd();
             parts.push(
-                `${indent}<template data-problem="${problem.id}" data-md="${key}">`
+                `${indent}<template data-problem="${problem.id}" data-md="${key}">`,
             );
             parts.push(safeValue);
             parts.push(`${indent}</template>`);
@@ -272,7 +275,7 @@ async function updateIndexHtml(templateBlock) {
     const startMarker = '<template data-md="problem-index">';
     const startIndex = html.indexOf(startMarker);
     const scriptMatch = html.match(
-        /<script\b[^>]*\bsrc="app\.js"[^>]*><\/script>/
+        /<script\b[^>]*\bsrc="app\.js"[^>]*><\/script>/,
     );
     if (startIndex === -1 || !scriptMatch) {
         return;
@@ -300,7 +303,10 @@ async function main() {
         const contentById = {};
 
         for (const problem of problems) {
-            const statementPath = resolveStoredPath(dataDir, problem.statementPath);
+            const statementPath = resolveStoredPath(
+                dataDir,
+                problem.statementPath,
+            );
             const statement = await readTextFile(statementPath);
             const problemMd = statement.trim()
                 ? `${statement.replace(/\s+$/u, "")}\n`
@@ -325,7 +331,7 @@ async function main() {
         const templateBlock = createTemplateBlock(
             problemIndex,
             sortedProblems,
-            contentById
+            contentById,
         );
         await updateIndexHtml(templateBlock);
     } finally {

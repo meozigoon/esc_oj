@@ -28,9 +28,7 @@ function resolveDataDir(value?: string): string {
     if (!value) {
         return path.resolve(repoRoot, "data");
     }
-    return path.isAbsolute(value)
-        ? value
-        : path.resolve(repoRoot, value);
+    return path.isAbsolute(value) ? value : path.resolve(repoRoot, value);
 }
 
 function resolveDataPath(relativePath: string): string {
@@ -126,7 +124,7 @@ const worker = new Worker(
                     ord: testcase.ord,
                     input: await readTextFile(testcase.inputPath),
                     output: await readTextFile(testcase.outputPath),
-                }))
+                })),
             );
 
             const result = await judgeSubmission({
@@ -174,7 +172,7 @@ const worker = new Worker(
             });
         }
     },
-    { connection: redis, concurrency }
+    { connection: redis, concurrency },
 );
 
 worker.on("failed", (job, err) => {

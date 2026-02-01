@@ -33,7 +33,7 @@ export default function Layout() {
     const year = new Date().getFullYear();
     const appBarBg = alpha(
         theme.palette.background.paper,
-        theme.palette.mode === "dark" ? 0.9 : 0.8
+        theme.palette.mode === "dark" ? 0.9 : 0.8,
     );
     const appBarBorder =
         theme.palette.mode === "dark"
@@ -46,7 +46,7 @@ export default function Layout() {
         "/submissions/:id",
     ];
     const isWide = wideRoutes.some((pattern) =>
-        matchPath({ path: pattern, end: true }, location.pathname)
+        matchPath({ path: pattern, end: true }, location.pathname),
     );
     const outerMaxWidth = "xl";
     const contentWidth = isWide

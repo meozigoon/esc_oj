@@ -35,7 +35,7 @@ const queueName = process.env.QUEUE_NAME ?? "submission-queue";
 const queue = new Queue(queueName, { connection: redis });
 const redisEvents = new IORedis(
     process.env.REDIS_URL ?? "redis://localhost:6379",
-    { maxRetriesPerRequest: null }
+    { maxRetriesPerRequest: null },
 );
 const queueEvents = new QueueEvents(queueName, { connection: redisEvents });
 const queueEventsReady = queueEvents.waitUntilReady();
@@ -50,14 +50,14 @@ const corsOrigins = new Set(
     corsOriginRaw
         .split(",")
         .map((origin) => origin.trim())
-        .filter(Boolean)
+        .filter(Boolean),
 );
 if (corsOrigins.size === 0) {
     corsOrigins.add("http://localhost:5173");
 }
 if (corsOrigins.has("*")) {
     throw new Error(
-        'CORS_ORIGIN cannot include "*" when credentials are enabled.'
+        'CORS_ORIGIN cannot include "*" when credentials are enabled.',
     );
 }
 
@@ -72,7 +72,7 @@ app.use(
             callback(null, false);
         },
         credentials: true,
-    })
+    }),
 );
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
@@ -130,14 +130,14 @@ function resolveJwtSecret(): string {
     if (!secret) {
         if (isProd) {
             throw new Error(
-                "JWT_SECRET must be set to a strong value in production."
+                "JWT_SECRET must be set to a strong value in production.",
             );
         }
         return "dev-secret";
     }
     if (isProd && (secret === "dev-secret" || secret === "change-me")) {
         throw new Error(
-            "JWT_SECRET must be set to a strong value in production."
+            "JWT_SECRET must be set to a strong value in production.",
         );
     }
     return secret;
@@ -147,9 +147,7 @@ function resolveDataDir(value?: string): string {
     if (!value) {
         return path.resolve(repoRoot, "data");
     }
-    return path.isAbsolute(value)
-        ? value
-        : path.resolve(repoRoot, value);
+    return path.isAbsolute(value) ? value : path.resolve(repoRoot, value);
 }
 
 function toPosixPath(...segments: string[]): string {
@@ -162,7 +160,7 @@ function buildStatementPath(problemId: number): string {
 
 function buildTestcasePaths(
     problemId: number,
-    ord: number
+    ord: number,
 ): { inputPath: string; outputPath: string } {
     const base = toPosixPath("problems", String(problemId), "tests");
     return {
@@ -195,7 +193,7 @@ async function readTextFile(relativePath: string): Promise<string> {
 
 async function writeTextFile(
     relativePath: string,
-    content: string
+    content: string,
 ): Promise<void> {
     const absolutePath = resolveDataPath(relativePath);
     await ensureDir(path.dirname(absolutePath));
@@ -256,8 +254,8 @@ function parseAuthUser(payload: unknown): AuthUser | null {
         typeof sub === "number"
             ? sub
             : typeof sub === "string"
-            ? Number(sub)
-            : NaN;
+              ? Number(sub)
+              : NaN;
     if (!Number.isFinite(id)) {
         return null;
     }
@@ -313,7 +311,7 @@ function requireAdminRead(req: AuthRequest, res: Response, next: NextFunction) {
 function requireAdminWrite(
     req: AuthRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
 ) {
     if (!req.user || req.user.role !== "ADMIN") {
         res.status(403).json({ message: "관리자 권한이 필요합니다." });
@@ -625,7 +623,7 @@ app.post(
                 code,
                 input,
             },
-            { removeOnComplete: 100, removeOnFail: 100 }
+            { removeOnComplete: 100, removeOnFail: 100 },
         );
 
         try {
@@ -640,7 +638,7 @@ app.post(
                         : "실행에 실패했습니다.",
             });
         }
-    }
+    },
 );
 
 app.post(
@@ -722,11 +720,11 @@ app.post(
         await queue.add(
             "judge",
             { submissionId: submission.id },
-            { removeOnComplete: 100, removeOnFail: 100 }
+            { removeOnComplete: 100, removeOnFail: 100 },
         );
 
         res.json({ submissionId: submission.id });
-    }
+    },
 );
 
 app.get("/api/submissions", requireAuth, async (req: AuthRequest, res) => {
@@ -909,11 +907,11 @@ app.post(
         await queue.add(
             "judge",
             { submissionId: submission.id },
-            { removeOnComplete: 100, removeOnFail: 100 }
+            { removeOnComplete: 100, removeOnFail: 100 },
         );
 
         res.json({ submissionId: submission.id });
-    }
+    },
 );
 
 app.get(
@@ -925,7 +923,7 @@ app.get(
             orderBy: { startAt: "desc" },
         });
         res.json({ contests });
-    }
+    },
 );
 
 app.post(
@@ -957,7 +955,7 @@ app.post(
         });
 
         res.json({ contest });
-    }
+    },
 );
 
 app.put(
@@ -1003,7 +1001,7 @@ app.put(
             }
             throw error;
         }
-    }
+    },
 );
 
 app.delete(
@@ -1027,7 +1025,7 @@ app.delete(
             }
             throw error;
         }
-    }
+    },
 );
 
 app.get(
@@ -1047,7 +1045,7 @@ app.get(
                 createdAt: user.createdAt,
             })),
         });
-    }
+    },
 );
 
 app.post(
@@ -1084,7 +1082,7 @@ app.post(
                 role: normalizeRole(user.role),
             },
         });
-    }
+    },
 );
 
 app.put(
@@ -1125,7 +1123,7 @@ app.put(
                 role: normalizeRole(updated.role),
             },
         });
-    }
+    },
 );
 
 app.delete(
@@ -1163,7 +1161,7 @@ app.delete(
             }
             throw error;
         }
-    }
+    },
 );
 
 app.get(
@@ -1180,10 +1178,10 @@ app.get(
                 const statementMd = await readTextFile(problem.statementPath);
                 const { statementPath: _statementPath, ...rest } = problem;
                 return { ...rest, statementMd };
-            })
+            }),
         );
         res.json({ problems: withStatements });
-    }
+    },
 );
 
 app.get(
@@ -1209,7 +1207,7 @@ app.get(
         const statementMd = await readTextFile(problem.statementPath);
         const { statementPath: _statementPath, ...rest } = problem;
         res.json({ problem: { ...rest, statementMd } });
-    }
+    },
 );
 
 app.post(
@@ -1234,7 +1232,7 @@ app.post(
             parseDifficultyInput(req.body?.difficulty) ?? defaultDifficulty;
         const textAnswer = String(req.body?.textAnswer ?? "");
         const generatorLanguage = parseLanguageInput(
-            req.body?.generatorLanguage
+            req.body?.generatorLanguage,
         );
         const generatorCode = String(req.body?.generatorCode ?? "");
         const solutionLanguage = parseLanguageInput(req.body?.solutionLanguage);
@@ -1344,7 +1342,7 @@ app.post(
 
         const { statementPath: _statementPath, ...rest } = problem;
         res.json({ problem: { ...rest, statementMd } });
-    }
+    },
 );
 
 app.put(
@@ -1374,7 +1372,7 @@ app.put(
         const difficultyInput = parseDifficultyInput(req.body?.difficulty);
         const textAnswer = String(req.body?.textAnswer ?? "");
         const generatorLanguage = parseLanguageInput(
-            req.body?.generatorLanguage
+            req.body?.generatorLanguage,
         );
         const generatorCode = String(req.body?.generatorCode ?? "");
         const solutionLanguage = parseLanguageInput(req.body?.solutionLanguage);
@@ -1487,7 +1485,7 @@ app.put(
 
         const { statementPath: _statementPath, ...rest } = problem;
         res.json({ problem: { ...rest, statementMd } });
-    }
+    },
 );
 
 app.delete(
@@ -1512,7 +1510,7 @@ app.delete(
             }
             throw error;
         }
-    }
+    },
 );
 
 app.get(
@@ -1536,10 +1534,10 @@ app.get(
                 ord: testcase.ord,
                 input: await readTextFile(testcase.inputPath),
                 output: await readTextFile(testcase.outputPath),
-            }))
+            })),
         );
         res.json({ testcases: enriched });
-    }
+    },
 );
 
 app.post(
@@ -1600,7 +1598,7 @@ app.post(
         res.json({
             testcase: { id: testcase.id, ord: testcase.ord, input, output },
         });
-    }
+    },
 );
 
 app.put(
@@ -1665,7 +1663,7 @@ app.put(
         res.json({
             testcase: { id: testcase.id, ord: testcase.ord, input, output },
         });
-    }
+    },
 );
 
 app.delete(
@@ -1693,7 +1691,7 @@ app.delete(
         await removeFile(testcase.inputPath);
         await removeFile(testcase.outputPath);
         res.json({ ok: true });
-    }
+    },
 );
 
 app.get(
@@ -1749,7 +1747,7 @@ app.get(
         });
 
         res.json({ submissions });
-    }
+    },
 );
 
 app.get(
@@ -1799,7 +1797,7 @@ app.get(
   `;
 
         res.json({ rows });
-    }
+    },
 );
 
 app.get(
@@ -1849,7 +1847,7 @@ app.get(
   `;
 
         res.json({ rows });
-    }
+    },
 );
 
 app.get(
@@ -1930,49 +1928,39 @@ app.get(
     `;
 
         res.json({ rows });
-    }
+    },
 );
 
-app.get(
-    "/api/admin/memo",
-    requireAuth,
-    requireAdminRead,
-    async (_req, res) => {
-        const memo = await prisma.adminMemo.findFirst({
-            orderBy: { id: "asc" },
-        });
-        res.json({
-            memo: {
-                content: memo?.content ?? "",
-                updatedAt: memo?.updatedAt ?? null,
-            },
-        });
-    }
-);
+app.get("/api/admin/memo", requireAuth, requireAdminRead, async (_req, res) => {
+    const memo = await prisma.adminMemo.findFirst({
+        orderBy: { id: "asc" },
+    });
+    res.json({
+        memo: {
+            content: memo?.content ?? "",
+            updatedAt: memo?.updatedAt ?? null,
+        },
+    });
+});
 
-app.put(
-    "/api/admin/memo",
-    requireAuth,
-    requireAdminWrite,
-    async (req, res) => {
-        const content = String(req.body?.content ?? "");
-        const existing = await prisma.adminMemo.findFirst({
-            orderBy: { id: "asc" },
-        });
-        const memo = existing
-            ? await prisma.adminMemo.update({
-                  where: { id: existing.id },
-                  data: { content },
-              })
-            : await prisma.adminMemo.create({ data: { content } });
-        res.json({
-            memo: {
-                content: memo.content,
-                updatedAt: memo.updatedAt,
-            },
-        });
-    }
-);
+app.put("/api/admin/memo", requireAuth, requireAdminWrite, async (req, res) => {
+    const content = String(req.body?.content ?? "");
+    const existing = await prisma.adminMemo.findFirst({
+        orderBy: { id: "asc" },
+    });
+    const memo = existing
+        ? await prisma.adminMemo.update({
+              where: { id: existing.id },
+              data: { content },
+          })
+        : await prisma.adminMemo.create({ data: { content } });
+    res.json({
+        memo: {
+            content: memo.content,
+            updatedAt: memo.updatedAt,
+        },
+    });
+});
 
 app.get(
     "/api/admin/access-logs",
@@ -1984,7 +1972,7 @@ app.get(
             include: { user: { select: { id: true, username: true } } },
         });
         res.json({ logs });
-    }
+    },
 );
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

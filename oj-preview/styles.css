@@ -16,7 +16,8 @@
     --card: #ffffff;
     --card-strong: var(--bg-muted);
     --border: rgba(31, 41, 55, 0.12);
-    --shadow: 0 28px 60px -35px rgba(15, 23, 42, 0.45),
+    --shadow:
+        0 28px 60px -35px rgba(15, 23, 42, 0.45),
         0 18px 30px -24px rgba(15, 23, 42, 0.35);
     --bg-accent-1: rgba(244, 162, 97, 0.15);
     --bg-accent-2: rgba(31, 122, 140, 0.18);
@@ -26,10 +27,10 @@
     --radius-lg: 26px;
     --radius-md: 18px;
     --radius-sm: 12px;
-    --font-sans: "Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana,
-        sans-serif;
-    --font-serif: "Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana,
-        sans-serif;
+    --font-sans:
+        "Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    --font-serif:
+        "Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     --font-mono: Consolas, "Courier New", monospace;
 }
 
@@ -44,16 +45,9 @@ body {
     min-height: 100vh;
     font-family: var(--font-sans);
     color: var(--ink);
-    background: radial-gradient(
-            circle at 20% 0%,
-            var(--bg-accent-1),
-            transparent 35%
-        ),
-        radial-gradient(
-            circle at 85% 15%,
-            var(--bg-accent-2),
-            transparent 40%
-        ),
+    background:
+        radial-gradient(circle at 20% 0%, var(--bg-accent-1), transparent 35%),
+        radial-gradient(circle at 85% 15%, var(--bg-accent-2), transparent 40%),
         linear-gradient(
             180deg,
             var(--bg-base-start) 0%,
@@ -73,9 +67,12 @@ body::after {
 
 body::before {
     inset: 0;
-    background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
+    background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
         linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size: 48px 48px, 48px 48px;
+    background-size:
+        48px 48px,
+        48px 48px;
     opacity: 0.35;
 }
 

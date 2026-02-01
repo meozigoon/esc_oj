@@ -42,7 +42,7 @@ export function encodeSampleList(values: string[]): string {
 
 export function buildSamplePairs(
     sampleInput?: string | null,
-    sampleOutput?: string | null
+    sampleOutput?: string | null,
 ): SamplePair[] {
     const inputs = decodeSampleList(sampleInput);
     const outputs = decodeSampleList(sampleOutput);

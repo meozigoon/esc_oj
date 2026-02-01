@@ -90,7 +90,7 @@ async function main() {
     const statementPath = toPosixPath(
         "problems",
         String(problem.id),
-        "statement.mdx"
+        "statement.mdx",
     );
     await writeTextFile(statementPath, statementContent);
     if (problem.statementPath !== statementPath) {
@@ -112,13 +112,13 @@ async function main() {
             "problems",
             String(problem.id),
             "tests",
-            `${testcase.ord}.in`
+            `${testcase.ord}.in`,
         );
         const outputPath = toPosixPath(
             "problems",
             String(problem.id),
             "tests",
-            `${testcase.ord}.out`
+            `${testcase.ord}.out`,
         );
         await writeTextFile(inputPath, testcase.input);
         await writeTextFile(outputPath, testcase.output);

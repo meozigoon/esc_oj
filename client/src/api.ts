@@ -123,7 +123,7 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
 
 export async function apiFetch<T>(
     path: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
 ): Promise<T> {
     const headers = new Headers(options.headers ?? {});
     if (!headers.has("Content-Type") && typeof options.body === "string") {

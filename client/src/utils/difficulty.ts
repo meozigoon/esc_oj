@@ -13,10 +13,10 @@ export const difficultyOptions: Array<{
 ];
 
 const difficultyOrder: ProblemDifficulty[] = difficultyOptions.map(
-    (option) => option.value
+    (option) => option.value,
 );
 const difficultyLabels = new Map<ProblemDifficulty, string>(
-    difficultyOptions.map((option) => [option.value, option.label])
+    difficultyOptions.map((option) => [option.value, option.label]),
 );
 
 const green = [22, 163, 74];
@@ -30,13 +30,13 @@ function lerp(a: number, b: number, t: number): number {
 function mixColor(
     a: number[],
     b: number[],
-    t: number
+    t: number,
 ): [number, number, number] {
     return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 }
 
 function resolveDifficultyRgb(
-    value?: ProblemDifficulty | null
+    value?: ProblemDifficulty | null,
 ): [number, number, number] | null {
     if (!value) {
         return null;
@@ -69,7 +69,7 @@ export function getDifficultyColor(value?: ProblemDifficulty | null): string {
 }
 
 export function getDifficultyTextColor(
-    value?: ProblemDifficulty | null
+    value?: ProblemDifficulty | null,
 ): string {
     const rgb = resolveDifficultyRgb(value);
     if (!rgb) {

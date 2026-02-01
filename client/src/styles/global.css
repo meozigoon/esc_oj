@@ -36,19 +36,12 @@
 
 body {
     margin: 0;
-    font-family: "Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana,
-        sans-serif;
+    font-family:
+        "Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     color: var(--ink);
-    background: radial-gradient(
-            circle at 20% 0%,
-            var(--bg-accent-1),
-            transparent 35%
-        ),
-        radial-gradient(
-            circle at 85% 15%,
-            var(--bg-accent-2),
-            transparent 40%
-        ),
+    background:
+        radial-gradient(circle at 20% 0%, var(--bg-accent-1), transparent 35%),
+        radial-gradient(circle at 85% 15%, var(--bg-accent-2), transparent 40%),
         linear-gradient(
             180deg,
             var(--bg-base-start) 0%,
@@ -62,9 +55,12 @@ body::before {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
+    background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
         linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size: 48px 48px, 48px 48px;
+    background-size:
+        48px 48px,
+        48px 48px;
     opacity: 0.3;
     z-index: 0;
 }

@@ -202,7 +202,7 @@ async function runProcess(
     limits: { stdout: number; stderr: number } = {
         stdout: DEFAULT_STDOUT_LIMIT_BYTES,
         stderr: DEFAULT_STDERR_LIMIT_BYTES,
-    }
+    },
 ): Promise<ExecResult> {
     return new Promise((resolve) => {
         let resolved = false;
@@ -225,7 +225,7 @@ async function runProcess(
         const appendLimited = (
             state: { value: string; size: number; truncated: boolean },
             data: Buffer,
-            limit: number
+            limit: number,
         ) => {
             if (limit <= 0) {
                 state.truncated = true;
@@ -308,7 +308,7 @@ async function runProcess(
 async function dockerRun(
     args: string[],
     input?: string,
-    timeoutMs?: number
+    timeoutMs?: number,
 ): Promise<ExecResult> {
     return runProcess("docker", args, input, timeoutMs);
 }
@@ -355,7 +355,7 @@ async function writeFileToVolume(
     image: string,
     volumeName: string,
     fileName: string,
-    content: string
+    content: string,
 ): Promise<ExecResult> {
     const args = [
         "run",
@@ -410,7 +410,7 @@ function createAggregateStats(): AggregateStats {
 function recordStats(
     stats: AggregateStats,
     runtimeMs: number,
-    memoryKb?: number | null
+    memoryKb?: number | null,
 ): void {
     stats.runtimeTotalMs += runtimeMs;
     stats.runtimeSamples += 1;
@@ -452,7 +452,7 @@ function buildOutputLimitDetail(result: ExecResult): string {
 
 function createProgressReporter(
     total: number,
-    onProgress?: (progress: JudgeProgress) => Promise<void> | void
+    onProgress?: (progress: JudgeProgress) => Promise<void> | void,
 ) {
     let lastPercent = -1;
     return async (current: number) => {
@@ -476,7 +476,7 @@ async function createVolume(volumeName: string): Promise<void> {
     const result = await runProcess("docker", ["volume", "create", volumeName]);
     if (result.code !== 0) {
         throw new Error(
-            result.stderr || result.stdout || "Failed to create volume"
+            result.stderr || result.stdout || "Failed to create volume",
         );
     }
 }
@@ -505,7 +505,7 @@ async function prepareProgram(options: {
         options.image,
         volumeName,
         config.sourceFile,
-        options.code
+        options.code,
     );
     if (writeResult.code !== 0) {
         await removeVolume(volumeName);
@@ -515,7 +515,7 @@ async function prepareProgram(options: {
     if (config.compile) {
         const compileCommand = wrapTimeout(
             config.compile,
-            options.compileTimeoutMs
+            options.compileTimeoutMs,
         );
         const compileResult = await dockerRun(
             buildDockerArgs({
@@ -525,7 +525,7 @@ async function prepareProgram(options: {
                 memoryLimitMb: options.memoryLimitMb,
             }),
             undefined,
-            options.compileTimeoutMs + 1000
+            options.compileTimeoutMs + 1000,
         );
 
         if (compileResult.code !== 0 || compileResult.timedOut) {
@@ -546,7 +546,7 @@ async function runProgram(options: {
 }): Promise<ExecResult> {
     const runCommand = wrapTimedCommand(
         options.program.config.run,
-        options.timeLimitMs
+        options.timeLimitMs,
     );
     const result = await dockerRun(
         buildDockerArgs({
@@ -556,7 +556,7 @@ async function runProgram(options: {
             memoryLimitMb: options.memoryLimitMb,
         }),
         options.input,
-        options.timeLimitMs + 1000
+        options.timeLimitMs + 1000,
     );
     const { memoryKb, cleanedStderr } = extractTimeStats(result.stderr);
     return { ...result, stderr: cleanedStderr, memoryKb };
@@ -818,7 +818,7 @@ export async function judgeSubmission(options: {
             const total = options.testcases.length;
             const reportProgress = createProgressReporter(
                 total,
-                options.onProgress
+                options.onProgress,
             );
             for (let index = 0; index < total; index += 1) {
                 const testcase = options.testcases[index];
@@ -1012,11 +1012,11 @@ export async function judgeSubmission(options: {
 
         const generatedTestcases = generatedInputs.slice(
             0,
-            generatedTestcaseCount
+            generatedTestcaseCount,
         );
         const reportProgress = createProgressReporter(
             generatedTestcases.length,
-            options.onProgress
+            options.onProgress,
         );
 
         const solutionPrepared = await prepareProgram({

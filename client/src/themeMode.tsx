@@ -17,7 +17,7 @@ type ThemeModeContextValue = {
 };
 
 const ThemeModeContext = createContext<ThemeModeContextValue | undefined>(
-    undefined
+    undefined,
 );
 
 export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
