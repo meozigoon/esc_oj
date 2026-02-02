@@ -7,3 +7,4 @@ coverage
 npm-debug.log*
 data
 .vscode
+oj-preview
