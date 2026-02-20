@@ -26,4 +26,6 @@ COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/worker/dist /app/worker/dist
 COPY worker/package.json /app/worker/package.json
 COPY prisma /app/prisma
+RUN useradd -m -u 10001 workeruser && chown -R workeruser:workeruser /app
+USER workeruser
 CMD ["node", "worker/dist/index.js"]

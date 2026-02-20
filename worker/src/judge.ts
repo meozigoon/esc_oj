@@ -112,6 +112,22 @@ const COMPILE_MEMORY_LIMIT_MB = Math.max(
     256,
     readEnvLimit("COMPILE_MEMORY_LIMIT_MB", 1024),
 );
+const MAX_GENERATED_TESTCASE_COUNT = Math.max(
+    1,
+    readEnvLimit("MAX_GENERATED_TESTCASE_COUNT", 30),
+);
+const SANDBOX_VOLUME_SIZE_MB = Math.max(
+    64,
+    readEnvLimit("SANDBOX_VOLUME_SIZE_MB", 256),
+);
+const SANDBOX_MAX_FILE_BYTES = Math.max(
+    1024 * 1024,
+    readEnvLimit("SANDBOX_MAX_FILE_BYTES", 16 * 1024 * 1024),
+);
+const SANDBOX_ALLOW_UNLIMITED_VOLUME_FALLBACK =
+    (process.env.SANDBOX_ALLOW_UNLIMITED_VOLUME_FALLBACK ?? "false")
+        .trim()
+        .toLowerCase() === "true";
 
 export function normalizeOutput(value: string): string {
     return value.replace(/\r\n?/g, "\n");
@@ -347,6 +363,11 @@ function buildDockerArgs(options: {
     user?: string;
 }): string[] {
     const user = options.user ?? RUNNER_USER;
+    const fileSizeBlocks = Math.max(
+        1,
+        Math.floor(SANDBOX_MAX_FILE_BYTES / 512),
+    );
+    const command = `ulimit -f ${fileSizeBlocks}; ${options.command}`;
     return [
         "run",
         "--rm",
@@ -377,7 +398,7 @@ function buildDockerArgs(options: {
         options.image,
         "sh",
         "-c",
-        options.command,
+        command,
     ];
 }
 
@@ -387,6 +408,10 @@ async function writeFileToVolume(
     fileName: string,
     content: string,
 ): Promise<ExecResult> {
+    const fileSizeBlocks = Math.max(
+        1,
+        Math.floor(SANDBOX_MAX_FILE_BYTES / 512),
+    );
     const args = [
         "run",
         "--rm",
@@ -411,7 +436,7 @@ async function writeFileToVolume(
         image,
         "sh",
         "-c",
-        `cat > /workspace/${fileName}`,
+        `ulimit -f ${fileSizeBlocks}; cat > /workspace/${fileName}`,
     ];
     return dockerRun(args, content, 5000);
 }
@@ -510,7 +535,23 @@ function createProgressReporter(
 }
 
 async function createVolume(volumeName: string): Promise<void> {
-    const result = await runProcess("docker", ["volume", "create", volumeName]);
+    const secureCreateArgs = [
+        "volume",
+        "create",
+        "--driver",
+        "local",
+        "--opt",
+        "type=tmpfs",
+        "--opt",
+        "device=tmpfs",
+        "--opt",
+        `o=size=${SANDBOX_VOLUME_SIZE_MB}m,uid=${RUNNER_UID},gid=${RUNNER_GID},mode=0755`,
+        volumeName,
+    ];
+    let result = await runProcess("docker", secureCreateArgs);
+    if (result.code !== 0 && SANDBOX_ALLOW_UNLIMITED_VOLUME_FALLBACK) {
+        result = await runProcess("docker", ["volume", "create", volumeName]);
+    }
     if (result.code !== 0) {
         throw new Error(
             result.stderr || result.stdout || "Failed to create volume",
@@ -1022,7 +1063,7 @@ export async function judgeSubmission(options: {
         const generatorProgram = generatorPrepared.program;
         volumesToCleanup.push(generatorProgram.volumeName);
         const generatorTimeoutMs = Math.max(2000, timeLimitMs);
-        const generatedTestcaseCount = 100;
+        const generatedTestcaseCount = MAX_GENERATED_TESTCASE_COUNT;
         const generatedInputs: string[] = [];
 
         for (let attempt = 0; attempt < generatedTestcaseCount; attempt += 1) {

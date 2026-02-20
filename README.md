@@ -52,9 +52,14 @@ Online Judge System for ESC, Computer Science Club of Hansung Science High Schoo
 - `TRUST_PROXY`: 리버스 프록시 뒤에서 실행한다면 `true` 또는 홉 수를 설정하세요.
 - `JWT_SECRET_MIN_LENGTH`: 프로덕션 환경에서 JWT 비밀키 최소 길이 (기본 32)
 - `MAX_*`: 코드/입력/문제 본문/테스트케이스 길이 및 시간/메모리 상한 (자세한 항목은 `.env.example` 참고)
+- `MAX_TESTCASE_COUNT`: 문제당 최대 테스트케이스 개수
 - `RUN_WAIT_TIMEOUT_MS`: `/api/problems/:id/run` 동기 실행 대기 시간 (기본 60000ms)
+- `RUN_QUEUE_NAME`, `JUDGE_QUEUE_NAME`: 실행/채점 큐 이름
+- `RUN_WORKER_CONCURRENCY`, `JUDGE_WORKER_CONCURRENCY`: 실행/채점 워커 동시성
 - `COMPILE_TIMEOUT_MS`: 컴파일 단계 제한 시간 (기본 20000ms)
 - `COMPILE_MEMORY_LIMIT_MB`: 컴파일 단계 메모리 제한 (기본 1024MB)
+- `MAX_GENERATED_TESTCASE_COUNT`: 생성형 채점 시 생성 테스트케이스 수 상한
+- `SANDBOX_VOLUME_SIZE_MB`, `SANDBOX_MAX_FILE_BYTES`: 샌드박스 작업공간/파일 크기 제한
 - `JUDGE_IMAGE_ALLOWLIST`: 워커가 사용할 수 있는 채점 이미지 allowlist (쉼표 구분)
 
 2. 채점 이미지 빌드
@@ -200,7 +205,7 @@ npx prisma studio --schema=prisma/schema.prisma
 
 ## 참고
 
-- 워커 컨테이너는 Docker 소켓(`/var/run/docker.sock`)을 사용해 채점 컨테이너를 실행합니다.
+- 워커는 Docker Socket Proxy를 통해 제한된 Docker API만 사용해 채점 컨테이너를 실행합니다.
 - Windows 환경에서는 Docker Desktop의 드라이브 공유 설정을 확인하세요.
 - GitHub 링크는 `client/.env`의 `VITE_GITHUB_URL`로 변경할 수 있습니다.
 - `docker-compose.yml`은 DB/Redis를 호스트에 직접 노출하지 않습니다. 필요 시 `docker compose exec`로 접근하세요.

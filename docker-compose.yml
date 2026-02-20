@@ -23,6 +23,25 @@ services:
             interval: 10s
             timeout: 5s
             retries: 5
+    docker-proxy:
+        image: tecnativa/docker-socket-proxy:0.3.0
+        environment:
+            CONTAINERS: 1
+            IMAGES: 1
+            VOLUMES: 1
+            NETWORKS: 1
+            INFO: 1
+            PING: 1
+            VERSION: 1
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+        cap_drop:
+            - ALL
+        security_opt:
+            - no-new-privileges:true
+        read_only: true
+        tmpfs:
+            - /run
     server:
         build:
             context: .
@@ -53,7 +72,10 @@ services:
             MAX_PASSWORD_LENGTH: ${MAX_PASSWORD_LENGTH:-128}
             MAX_TIME_LIMIT_MS: ${MAX_TIME_LIMIT_MS:-10000}
             MAX_MEMORY_LIMIT_MB: ${MAX_MEMORY_LIMIT_MB:-512}
+            MAX_TESTCASE_COUNT: ${MAX_TESTCASE_COUNT:-200}
             RUN_WAIT_TIMEOUT_MS: ${RUN_WAIT_TIMEOUT_MS:-60000}
+            RUN_QUEUE_NAME: ${RUN_QUEUE_NAME:-run-queue}
+            JUDGE_QUEUE_NAME: ${JUDGE_QUEUE_NAME:-submission-queue}
         ports:
             - "3000:3000"
         depends_on:
@@ -77,22 +99,33 @@ services:
             JUDGE_IMAGE: ${JUDGE_IMAGE:-oj-runner:latest}
             JUDGE_IMAGE_ALLOWLIST: ${JUDGE_IMAGE_ALLOWLIST:-oj-runner:latest}
             WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+            RUN_WORKER_CONCURRENCY: ${RUN_WORKER_CONCURRENCY:-2}
+            JUDGE_WORKER_CONCURRENCY: ${JUDGE_WORKER_CONCURRENCY:-4}
+            RUN_QUEUE_NAME: ${RUN_QUEUE_NAME:-run-queue}
+            JUDGE_QUEUE_NAME: ${JUDGE_QUEUE_NAME:-submission-queue}
             DATA_DIR: /app/data
             MAX_TIME_LIMIT_MS: ${MAX_TIME_LIMIT_MS:-10000}
             MAX_MEMORY_LIMIT_MB: ${MAX_MEMORY_LIMIT_MB:-512}
+            MAX_TESTCASE_COUNT: ${MAX_TESTCASE_COUNT:-200}
+            MAX_GENERATED_TESTCASE_COUNT: ${MAX_GENERATED_TESTCASE_COUNT:-30}
             COMPILE_TIMEOUT_MS: ${COMPILE_TIMEOUT_MS:-20000}
             COMPILE_MEMORY_LIMIT_MB: ${COMPILE_MEMORY_LIMIT_MB:-1024}
+            SANDBOX_VOLUME_SIZE_MB: ${SANDBOX_VOLUME_SIZE_MB:-256}
+            SANDBOX_MAX_FILE_BYTES: ${SANDBOX_MAX_FILE_BYTES:-16777216}
+            SANDBOX_ALLOW_UNLIMITED_VOLUME_FALLBACK: ${SANDBOX_ALLOW_UNLIMITED_VOLUME_FALLBACK:-false}
+            DOCKER_HOST: tcp://docker-proxy:2375
         depends_on:
             postgres:
                 condition: service_healthy
             redis:
                 condition: service_healthy
+            docker-proxy:
+                condition: service_started
         cap_drop:
             - ALL
         security_opt:
             - no-new-privileges:true
         volumes:
-            - /var/run/docker.sock:/var/run/docker.sock:ro
             - ./data:/app/data
 volumes:
     postgres_data:

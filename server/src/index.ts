@@ -37,14 +37,18 @@ const prisma = new PrismaClient();
 const redis = new IORedis(process.env.REDIS_URL ?? "redis://localhost:6379", {
     maxRetriesPerRequest: null,
 });
-const queueName = process.env.QUEUE_NAME ?? "submission-queue";
-const queue = new Queue(queueName, { connection: redis });
+const legacyQueueName = process.env.QUEUE_NAME?.trim();
+const runQueueName = process.env.RUN_QUEUE_NAME ?? "run-queue";
+const judgeQueueName =
+    process.env.JUDGE_QUEUE_NAME ?? legacyQueueName ?? "submission-queue";
+const runQueue = new Queue(runQueueName, { connection: redis });
+const judgeQueue = new Queue(judgeQueueName, { connection: redis });
 const redisEvents = new IORedis(
     process.env.REDIS_URL ?? "redis://localhost:6379",
     { maxRetriesPerRequest: null },
 );
-const queueEvents = new QueueEvents(queueName, { connection: redisEvents });
-const queueEventsReady = queueEvents.waitUntilReady();
+const runQueueEvents = new QueueEvents(runQueueName, { connection: redisEvents });
+const runQueueEventsReady = runQueueEvents.waitUntilReady();
 const dataDir = resolveDataDir(process.env.DATA_DIR);
 const isProd = process.env.NODE_ENV === "production";
 
@@ -65,6 +69,7 @@ const minPasswordLength = readEnvLimit("MIN_PASSWORD_LENGTH", 8);
 const maxPasswordLength = readEnvLimit("MAX_PASSWORD_LENGTH", 128);
 const maxTimeLimitMs = readEnvLimit("MAX_TIME_LIMIT_MS", 10_000);
 const maxMemoryLimitMb = readEnvLimit("MAX_MEMORY_LIMIT_MB", 512);
+const maxTestcaseCount = readEnvLimit("MAX_TESTCASE_COUNT", 200);
 const runWaitTimeoutMs = readEnvLimit("RUN_WAIT_TIMEOUT_MS", 60_000);
 
 const app = express();
@@ -147,6 +152,13 @@ const loginLimiter = rateLimit({
 const submitLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const accessLogLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
     standardHeaders: true,
     legacyHeaders: false,
 });
@@ -503,6 +515,34 @@ function isNotFoundError(error: unknown): boolean {
     );
 }
 
+async function enqueueJudgeSubmission(submissionId: number): Promise<void> {
+    try {
+        await judgeQueue.add(
+            "judge",
+            { submissionId },
+            {
+                jobId: `judge-${submissionId}`,
+                removeOnComplete: 100,
+                removeOnFail: 100,
+            },
+        );
+    } catch (error) {
+        await prisma.submission.updateMany({
+            where: {
+                id: submissionId,
+                status: SubmissionStatus.PENDING,
+            },
+            data: {
+                status: SubmissionStatus.SYSTEM_ERROR,
+                message: "채점 대기열 등록 실패",
+                detail:
+                    "채점 대기열 등록에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+            },
+        });
+        throw error;
+    }
+}
+
 app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
 });
@@ -572,12 +612,17 @@ app.get("/api/me", (req: AuthRequest, res) => {
     });
 });
 
-app.post("/api/access-logs", requireAuth, async (req: AuthRequest, res) => {
-    const log = await prisma.accessLog.create({
-        data: { userId: req.user!.id },
-    });
-    res.json({ log: { id: log.id, createdAt: log.createdAt } });
-});
+app.post(
+    "/api/access-logs",
+    requireAuth,
+    accessLogLimiter,
+    async (req: AuthRequest, res) => {
+        const log = await prisma.accessLog.create({
+            data: { userId: req.user!.id },
+        });
+        res.json({ log: { id: log.id, createdAt: log.createdAt } });
+    },
+);
 
 app.get("/api/contests", requireAuth, async (_req, res) => {
     const contests = await prisma.contest.findMany({
@@ -739,37 +784,40 @@ app.post(
             }
         }
 
-        const job = await queue.add(
-            "run",
-            {
-                problemId: problem.id,
-                language,
-                code,
-                input,
-            },
-            { removeOnComplete: 100, removeOnFail: 100 },
-        );
-
         try {
-            await queueEventsReady;
-            const result = await job.waitUntilFinished(
-                queueEvents,
-                runWaitTimeoutMs,
+            const job = await runQueue.add(
+                "run",
+                {
+                    problemId: problem.id,
+                    language,
+                    code,
+                    input,
+                },
+                { removeOnComplete: 100, removeOnFail: 100 },
             );
-            res.json({ result });
-        } catch (error) {
-            if (isQueueWaitTimeoutError(error)) {
-                res.status(504).json({
-                    message:
-                        "실행 대기 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
+            try {
+                await runQueueEventsReady;
+                const result = await job.waitUntilFinished(
+                    runQueueEvents,
+                    runWaitTimeoutMs,
+                );
+                res.json({ result });
+            } catch (error) {
+                if (isQueueWaitTimeoutError(error)) {
+                    res.status(504).json({
+                        message:
+                            "실행 대기 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
+                    });
+                    return;
+                }
+                res.status(500).json({
+                    message: "실행에 실패했습니다.",
                 });
-                return;
             }
-            res.status(500).json({
+        } catch {
+            res.status(503).json({
                 message:
-                    error instanceof Error
-                        ? error.message
-                        : "실행에 실패했습니다.",
+                    "실행 요청을 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.",
             });
         }
     },
@@ -856,11 +904,15 @@ app.post(
             },
         });
 
-        await queue.add(
-            "judge",
-            { submissionId: submission.id },
-            { removeOnComplete: 100, removeOnFail: 100 },
-        );
+        try {
+            await enqueueJudgeSubmission(submission.id);
+        } catch {
+            res.status(503).json({
+                message:
+                    "채점 대기열 등록에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+            });
+            return;
+        }
 
         res.json({ submissionId: submission.id });
     },
@@ -1047,11 +1099,15 @@ app.post(
             },
         });
 
-        await queue.add(
-            "judge",
-            { submissionId: submission.id },
-            { removeOnComplete: 100, removeOnFail: 100 },
-        );
+        try {
+            await enqueueJudgeSubmission(submission.id);
+        } catch {
+            res.status(503).json({
+                message:
+                    "채점 대기열 등록에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+            });
+            return;
+        }
 
         res.json({ submissionId: submission.id });
     },
@@ -1739,7 +1795,14 @@ app.get(
         const testcases = await prisma.testcase.findMany({
             where: { problemId },
             orderBy: { ord: "asc" },
+            take: maxTestcaseCount + 1,
         });
+        if (testcases.length > maxTestcaseCount) {
+            res.status(400).json({
+                message: `테스트케이스 수가 제한(${maxTestcaseCount}개)을 초과했습니다.`,
+            });
+            return;
+        }
         const enriched = await Promise.all(
             testcases.map(async (testcase) => ({
                 id: testcase.id,
@@ -1783,6 +1846,14 @@ app.post(
             return;
         }
 
+        const testcaseCount = await prisma.testcase.count({ where: { problemId } });
+        if (testcaseCount >= maxTestcaseCount) {
+            res.status(400).json({
+                message: `테스트케이스는 최대 ${maxTestcaseCount}개까지 추가할 수 있습니다.`,
+            });
+            return;
+        }
+
         let ord = ordInput ?? null;
         if (!ord) {
             const last = await prisma.testcase.findFirst({
@@ -1790,6 +1861,10 @@ app.post(
                 orderBy: { ord: "desc" },
             });
             ord = last ? last.ord + 1 : 1;
+        }
+        if (ord > maxTestcaseCount) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
         }
 
         const existing = await prisma.testcase.findFirst({
@@ -1849,6 +1924,10 @@ app.put(
             res.status(400).json({ message: "입력값을 확인해 주세요." });
             return;
         }
+        if (ord > maxTestcaseCount) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
 
         const existing = await prisma.testcase.findUnique({
             where: { id: testcaseId },
@@ -1899,8 +1978,9 @@ app.delete(
     requireAuth,
     requireAdminWrite,
     async (req, res) => {
+        const problemId = parsePositiveInt(req.params.id);
         const testcaseId = parsePositiveInt(req.params.testcaseId);
-        if (!testcaseId) {
+        if (!problemId || !testcaseId) {
             res.status(400).json({ message: "잘못된 요청입니다." });
             return;
         }
@@ -1908,7 +1988,7 @@ app.delete(
         const testcase = await prisma.testcase.findUnique({
             where: { id: testcaseId },
         });
-        if (!testcase) {
+        if (!testcase || testcase.problemId !== problemId) {
             res.status(404).json({
                 message: "테스트케이스를 찾을 수 없습니다.",
             });
@@ -2221,12 +2301,17 @@ app.listen(port, () => {
 
 async function shutdown() {
     try {
-        await queue.close();
+        await runQueue.close();
     } catch {
         // ignore shutdown errors
     }
     try {
-        await queueEvents.close();
+        await judgeQueue.close();
+    } catch {
+        // ignore shutdown errors
+    }
+    try {
+        await runQueueEvents.close();
     } catch {
         // ignore shutdown errors
     }
