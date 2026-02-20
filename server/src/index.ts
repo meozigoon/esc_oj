@@ -1523,7 +1523,7 @@ app.post(
                 where: { id: problem.id },
                 data: { statementPath },
             });
-        } catch (error) {
+        } catch {
             await prisma.problem.delete({ where: { id: problem.id } });
             res.status(500).json({ message: "문제 파일 저장에 실패했습니다." });
             return;
