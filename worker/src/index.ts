@@ -22,6 +22,17 @@ const concurrencyRaw = Number(process.env.WORKER_CONCURRENCY ?? 4);
 const concurrency =
     Number.isFinite(concurrencyRaw) && concurrencyRaw > 0 ? concurrencyRaw : 4;
 const judgeImage = process.env.JUDGE_IMAGE ?? "oj-runner:latest";
+const judgeImageAllowlist = new Set(
+    (process.env.JUDGE_IMAGE_ALLOWLIST ?? judgeImage)
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean),
+);
+if (!judgeImageAllowlist.has(judgeImage)) {
+    throw new Error(
+        `JUDGE_IMAGE ${judgeImage} is not in JUDGE_IMAGE_ALLOWLIST.`,
+    );
+}
 const dataDir = resolveDataDir(process.env.DATA_DIR);
 
 function resolveDataDir(value?: string): string {

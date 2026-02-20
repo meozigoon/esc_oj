@@ -35,7 +35,7 @@ Online Judge System for ESC, Computer Science Club of Hansung Science High Schoo
 
 ## 사전 준비
 
-- Node.js 18+
+- Node.js 20+
 - Docker Desktop (WSL2 권장)
 - Docker Compose
 
@@ -46,6 +46,16 @@ Online Judge System for ESC, Computer Science Club of Hansung Science High Schoo
 1. `.env` 준비
     - `.env.example`을 복사해 `.env`를 만든 뒤 `CORS_ORIGIN`을 설정합니다.
     - 프로덕션에서는 `JWT_SECRET`, `ADMIN_PASSWORD`를 반드시 설정하세요.
+
+추가 보안 설정(필요 시 `.env`에 추가):
+- `COOKIE_SECURE`: HTTPS 사용 시 `true`로 설정하세요. (프로덕션 기본값은 `true`)
+- `TRUST_PROXY`: 리버스 프록시 뒤에서 실행한다면 `true` 또는 홉 수를 설정하세요.
+- `JWT_SECRET_MIN_LENGTH`: 프로덕션 환경에서 JWT 비밀키 최소 길이 (기본 32)
+- `MAX_*`: 코드/입력/문제 본문/테스트케이스 길이 및 시간/메모리 상한 (자세한 항목은 `.env.example` 참고)
+- `RUN_WAIT_TIMEOUT_MS`: `/api/problems/:id/run` 동기 실행 대기 시간 (기본 60000ms)
+- `COMPILE_TIMEOUT_MS`: 컴파일 단계 제한 시간 (기본 20000ms)
+- `COMPILE_MEMORY_LIMIT_MB`: 컴파일 단계 메모리 제한 (기본 1024MB)
+- `JUDGE_IMAGE_ALLOWLIST`: 워커가 사용할 수 있는 채점 이미지 allowlist (쉼표 구분)
 
 2. 채점 이미지 빌드
 
@@ -193,6 +203,7 @@ npx prisma studio --schema=prisma/schema.prisma
 - 워커 컨테이너는 Docker 소켓(`/var/run/docker.sock`)을 사용해 채점 컨테이너를 실행합니다.
 - Windows 환경에서는 Docker Desktop의 드라이브 공유 설정을 확인하세요.
 - GitHub 링크는 `client/.env`의 `VITE_GITHUB_URL`로 변경할 수 있습니다.
+- `docker-compose.yml`은 DB/Redis를 호스트에 직접 노출하지 않습니다. 필요 시 `docker compose exec`로 접근하세요.
 
 ## 실행 화면
 

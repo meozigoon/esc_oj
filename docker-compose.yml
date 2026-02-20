@@ -2,33 +2,69 @@ services:
     postgres:
         image: postgres:15
         environment:
-            POSTGRES_USER: oj
-            POSTGRES_PASSWORD: ojpass
-            POSTGRES_DB: oj
-        ports:
-            - "5432:5432"
+            POSTGRES_USER: ${POSTGRES_USER:-oj}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ojpass}
+            POSTGRES_DB: ${POSTGRES_DB:-oj}
         volumes:
             - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test:
+                [
+                    "CMD-SHELL",
+                    "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB",
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
     redis:
         image: redis:7-alpine
-        ports:
-            - "6379:6379"
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
     server:
         build:
             context: .
             dockerfile: server/Dockerfile
         environment:
-            DATABASE_URL: postgresql://oj:ojpass@postgres:5432/oj?schema=public
-            REDIS_URL: redis://redis:6379
-            JWT_SECRET: dev-secret-change
+            DATABASE_URL: ${DATABASE_URL:-postgresql://oj:ojpass@postgres:5432/oj?schema=public}
+            REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+            JWT_SECRET: ${JWT_SECRET}
             CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
             PORT: 3000
             DATA_DIR: /app/data
+            COOKIE_SECURE: ${COOKIE_SECURE:-false}
+            TRUST_PROXY: ${TRUST_PROXY:-false}
+            JWT_SECRET_MIN_LENGTH: ${JWT_SECRET_MIN_LENGTH:-32}
+            MAX_JSON_BODY_BYTES: ${MAX_JSON_BODY_BYTES:-2097152}
+            MAX_CODE_SIZE: ${MAX_CODE_SIZE:-100000}
+            MAX_RUN_INPUT_SIZE: ${MAX_RUN_INPUT_SIZE:-50000}
+            MAX_STATEMENT_SIZE: ${MAX_STATEMENT_SIZE:-200000}
+            MAX_SAMPLE_SIZE: ${MAX_SAMPLE_SIZE:-50000}
+            MAX_TESTCASE_SIZE: ${MAX_TESTCASE_SIZE:-200000}
+            MAX_TEXT_ANSWER_SIZE: ${MAX_TEXT_ANSWER_SIZE:-50000}
+            MAX_GENERATOR_CODE_SIZE: ${MAX_GENERATOR_CODE_SIZE:-100000}
+            MAX_SOLUTION_CODE_SIZE: ${MAX_SOLUTION_CODE_SIZE:-100000}
+            MAX_PROBLEM_TITLE_LENGTH: ${MAX_PROBLEM_TITLE_LENGTH:-120}
+            MAX_CONTEST_TITLE_LENGTH: ${MAX_CONTEST_TITLE_LENGTH:-120}
+            MAX_USERNAME_LENGTH: ${MAX_USERNAME_LENGTH:-32}
+            MIN_PASSWORD_LENGTH: ${MIN_PASSWORD_LENGTH:-8}
+            MAX_PASSWORD_LENGTH: ${MAX_PASSWORD_LENGTH:-128}
+            MAX_TIME_LIMIT_MS: ${MAX_TIME_LIMIT_MS:-10000}
+            MAX_MEMORY_LIMIT_MB: ${MAX_MEMORY_LIMIT_MB:-512}
+            RUN_WAIT_TIMEOUT_MS: ${RUN_WAIT_TIMEOUT_MS:-60000}
         ports:
             - "3000:3000"
         depends_on:
-            - postgres
-            - redis
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        cap_drop:
+            - ALL
+        security_opt:
+            - no-new-privileges:true
         volumes:
             - ./data:/app/data
     worker:
@@ -36,16 +72,27 @@ services:
             context: .
             dockerfile: worker/Dockerfile
         environment:
-            DATABASE_URL: postgresql://oj:ojpass@postgres:5432/oj?schema=public
-            REDIS_URL: redis://redis:6379
-            JUDGE_IMAGE: oj-runner:latest
-            WORKER_CONCURRENCY: 4
+            DATABASE_URL: ${DATABASE_URL:-postgresql://oj:ojpass@postgres:5432/oj?schema=public}
+            REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+            JUDGE_IMAGE: ${JUDGE_IMAGE:-oj-runner:latest}
+            JUDGE_IMAGE_ALLOWLIST: ${JUDGE_IMAGE_ALLOWLIST:-oj-runner:latest}
+            WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
             DATA_DIR: /app/data
+            MAX_TIME_LIMIT_MS: ${MAX_TIME_LIMIT_MS:-10000}
+            MAX_MEMORY_LIMIT_MB: ${MAX_MEMORY_LIMIT_MB:-512}
+            COMPILE_TIMEOUT_MS: ${COMPILE_TIMEOUT_MS:-20000}
+            COMPILE_MEMORY_LIMIT_MB: ${COMPILE_MEMORY_LIMIT_MB:-1024}
         depends_on:
-            - postgres
-            - redis
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        cap_drop:
+            - ALL
+        security_opt:
+            - no-new-privileges:true
         volumes:
-            - /var/run/docker.sock:/var/run/docker.sock
+            - /var/run/docker.sock:/var/run/docker.sock:ro
             - ./data:/app/data
 volumes:
     postgres_data:

@@ -1,4 +1,4 @@
-FROM node:18-bullseye AS builder
+FROM node:20-bookworm AS builder
 WORKDIR /app
 COPY package.json ./
 COPY package-lock.json ./
@@ -6,11 +6,11 @@ COPY server/package.json server/
 COPY worker/package.json worker/
 COPY client/package.json client/
 COPY prisma prisma
-RUN npm install
+RUN npm ci
 COPY server server
 RUN npm run build -w server
 
-FROM node:18-bullseye
+FROM node:20-bookworm
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/node_modules /app/node_modules

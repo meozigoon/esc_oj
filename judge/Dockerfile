@@ -7,5 +7,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mono-devel \
     time \
     ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* \
+  && useradd -m -u 1000 runner
 WORKDIR /workspace

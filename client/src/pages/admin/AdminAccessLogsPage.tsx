@@ -1,4 +1,5 @@
 import {
+    Button,
     Card,
     CardContent,
     Stack,
@@ -16,19 +17,56 @@ import PageHeader from "../../components/PageHeader";
 export default function AdminAccessLogsPage() {
     const [logs, setLogs] = useState<AccessLog[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [nextOffset, setNextOffset] = useState<number | null>(null);
+    const limit = 200;
 
     useEffect(() => {
-        setError(null);
-        apiFetch<{ logs: AccessLog[] }>("/api/admin/access-logs")
-            .then((data) => setLogs(data.logs))
-            .catch((err) =>
+        const load = async () => {
+            setError(null);
+            setLoading(true);
+            try {
+                const data = await apiFetch<{
+                    logs: AccessLog[];
+                    nextOffset: number | null;
+                }>(`/api/admin/access-logs?limit=${limit}&offset=0`);
+                setLogs(data.logs);
+                setNextOffset(data.nextOffset);
+            } catch (err) {
                 setError(
                     err instanceof Error
                         ? err.message
                         : "접속 기록을 불러오지 못했습니다.",
-                ),
-            );
+                );
+            } finally {
+                setLoading(false);
+            }
+        };
+        void load();
     }, []);
+
+    const handleLoadMore = async () => {
+        if (nextOffset === null || loading) {
+            return;
+        }
+        setLoading(true);
+        try {
+            const data = await apiFetch<{
+                logs: AccessLog[];
+                nextOffset: number | null;
+            }>(`/api/admin/access-logs?limit=${limit}&offset=${nextOffset}`);
+            setLogs((prev) => [...prev, ...data.logs]);
+            setNextOffset(data.nextOffset);
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "접속 기록을 불러오지 못했습니다.",
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <Stack spacing={3}>
@@ -66,6 +104,17 @@ export default function AdminAccessLogsPage() {
                             )}
                         </TableBody>
                     </Table>
+                    {nextOffset !== null && (
+                        <Stack direction="row" justifyContent="center" mt={2}>
+                            <Button
+                                variant="outlined"
+                                onClick={handleLoadMore}
+                                disabled={loading}
+                            >
+                                {loading ? "불러오는 중..." : "더 보기"}
+                            </Button>
+                        </Stack>
+                    )}
                 </CardContent>
             </Card>
         </Stack>

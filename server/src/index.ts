@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import fs from "fs/promises";
 import path from "path";
 import express, { NextFunction, Request, Response } from "express";
+import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -19,6 +20,11 @@ import {
     SubmissionType,
     Prisma,
 } from "@prisma/client";
+import {
+    isQueueWaitTimeoutError,
+    isValidPasswordInput,
+    parseTokenSubject,
+} from "./authUtils";
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const rootEnvPath = path.resolve(repoRoot, ".env");
@@ -42,9 +48,29 @@ const queueEventsReady = queueEvents.waitUntilReady();
 const dataDir = resolveDataDir(process.env.DATA_DIR);
 const isProd = process.env.NODE_ENV === "production";
 
+const jwtSecretMinLength = readEnvLimit("JWT_SECRET_MIN_LENGTH", 32);
+const maxJsonBodyBytes = readEnvLimit("MAX_JSON_BODY_BYTES", 2 * 1024 * 1024);
+const maxCodeSize = readEnvLimit("MAX_CODE_SIZE", 100_000);
+const maxRunInputSize = readEnvLimit("MAX_RUN_INPUT_SIZE", 50_000);
+const maxStatementSize = readEnvLimit("MAX_STATEMENT_SIZE", 200_000);
+const maxSampleSize = readEnvLimit("MAX_SAMPLE_SIZE", 50_000);
+const maxTestcaseSize = readEnvLimit("MAX_TESTCASE_SIZE", 200_000);
+const maxTextAnswerSize = readEnvLimit("MAX_TEXT_ANSWER_SIZE", 50_000);
+const maxGeneratorCodeSize = readEnvLimit("MAX_GENERATOR_CODE_SIZE", 100_000);
+const maxSolutionCodeSize = readEnvLimit("MAX_SOLUTION_CODE_SIZE", 100_000);
+const maxProblemTitleLength = readEnvLimit("MAX_PROBLEM_TITLE_LENGTH", 120);
+const maxContestTitleLength = readEnvLimit("MAX_CONTEST_TITLE_LENGTH", 120);
+const maxUsernameLength = readEnvLimit("MAX_USERNAME_LENGTH", 32);
+const minPasswordLength = readEnvLimit("MIN_PASSWORD_LENGTH", 8);
+const maxPasswordLength = readEnvLimit("MAX_PASSWORD_LENGTH", 128);
+const maxTimeLimitMs = readEnvLimit("MAX_TIME_LIMIT_MS", 10_000);
+const maxMemoryLimitMb = readEnvLimit("MAX_MEMORY_LIMIT_MB", 512);
+const runWaitTimeoutMs = readEnvLimit("RUN_WAIT_TIMEOUT_MS", 60_000);
+
 const app = express();
+app.set("trust proxy", resolveTrustProxy());
 const jwtSecret = resolveJwtSecret();
-const cookieSecure = process.env.COOKIE_SECURE === "true";
+const cookieSecure = resolveCookieSecure();
 const corsOriginRaw = process.env.CORS_ORIGIN ?? "http://localhost:5173";
 const corsOrigins = new Set(
     corsOriginRaw
@@ -63,6 +89,12 @@ if (corsOrigins.has("*")) {
 
 app.disable("x-powered-by");
 app.use(
+    helmet({
+        contentSecurityPolicy: false,
+        crossOriginResourcePolicy: false,
+    }),
+);
+app.use(
     cors({
         origin: (origin, callback) => {
             if (!origin || corsOrigins.has(origin)) {
@@ -74,7 +106,23 @@ app.use(
         credentials: true,
     }),
 );
-app.use(express.json({ limit: "2mb" }));
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (!origin) {
+        next();
+        return;
+    }
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+        next();
+        return;
+    }
+    if (corsOrigins.has(origin)) {
+        next();
+        return;
+    }
+    res.status(403).json({ message: "허용되지 않은 Origin입니다." });
+});
+app.use(express.json({ limit: maxJsonBodyBytes }));
 app.use(cookieParser());
 
 type AuthUser = {
@@ -87,8 +135,6 @@ type AuthRequest = Request & { user?: AuthUser };
 
 type JwtPayload = {
     sub: number;
-    username: string;
-    role: Role;
 };
 
 const loginLimiter = rateLimit({
@@ -135,9 +181,20 @@ function resolveJwtSecret(): string {
         }
         return "dev-secret";
     }
-    if (isProd && (secret === "dev-secret" || secret === "change-me")) {
+    if (
+        isProd &&
+        (secret === "dev-secret" ||
+            secret === "change-me" ||
+            secret === "dev-secret-change" ||
+            secret === "secret")
+    ) {
         throw new Error(
             "JWT_SECRET must be set to a strong value in production.",
+        );
+    }
+    if (isProd && secret.length < jwtSecretMinLength) {
+        throw new Error(
+            `JWT_SECRET must be at least ${jwtSecretMinLength} characters in production.`,
         );
     }
     return secret;
@@ -237,54 +294,45 @@ function getToken(req: Request): string | null {
 function signToken(user: AuthUser): string {
     const payload: JwtPayload = {
         sub: user.id,
-        username: user.username,
-        role: user.role,
     };
     return jwt.sign(payload, jwtSecret, { expiresIn: "7d" });
 }
 
-function parseAuthUser(payload: unknown): AuthUser | null {
-    if (!payload || typeof payload !== "object") {
-        return null;
-    }
-
-    const record = payload as Record<string, unknown>;
-    const sub = record.sub;
-    const id =
-        typeof sub === "number"
-            ? sub
-            : typeof sub === "string"
-              ? Number(sub)
-              : NaN;
-    if (!Number.isFinite(id)) {
-        return null;
-    }
-
-    const username = record.username;
-    if (typeof username !== "string" || username.length === 0) {
-        return null;
-    }
-
-    const role = record.role;
-    if (role !== "ADMIN" && role !== "USER" && role !== "VIEWER") {
-        return null;
-    }
-
-    return { id, username, role };
-}
-
-app.use((req: AuthRequest, _res: Response, next: NextFunction) => {
+app.use(async (req: AuthRequest, _res: Response, next: NextFunction) => {
     const token = getToken(req);
     if (!token) {
         next();
         return;
     }
+
+    let payload: unknown;
     try {
-        const payload = jwt.verify(token, jwtSecret);
-        req.user = parseAuthUser(payload) ?? undefined;
+        payload = jwt.verify(token, jwtSecret);
     } catch {
         req.user = undefined;
+        next();
+        return;
     }
+
+    const userId = parseTokenSubject(payload);
+    if (!userId) {
+        req.user = undefined;
+        next();
+        return;
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, username: true, role: true },
+    });
+    req.user = user
+        ? {
+              id: user.id,
+              username: user.username,
+              role: user.role,
+          }
+        : undefined;
+
     next();
 });
 
@@ -345,6 +393,49 @@ function parseNonNegativeInt(value: unknown): number | null {
         return null;
     }
     return parsed;
+}
+
+function readEnvLimit(name: string, fallback: number): number {
+    const raw = process.env[name];
+    if (!raw) {
+        return fallback;
+    }
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        return fallback;
+    }
+    return Math.floor(parsed);
+}
+
+function exceedsLimit(value: string, limit: number): boolean {
+    return value.length > limit;
+}
+
+function resolveTrustProxy(): boolean | number {
+    const raw = process.env.TRUST_PROXY;
+    if (!raw) {
+        return false;
+    }
+    const normalized = raw.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") {
+        return true;
+    }
+    if (normalized === "false" || normalized === "0") {
+        return false;
+    }
+    const parsed = Number(normalized);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+        return parsed;
+    }
+    return false;
+}
+
+function resolveCookieSecure(): boolean {
+    const raw = process.env.COOKIE_SECURE;
+    if (!raw) {
+        return isProd;
+    }
+    return raw.trim().toLowerCase() === "true";
 }
 
 function normalizeRole(role: Role) {
@@ -418,7 +509,14 @@ app.get("/api/health", (_req, res) => {
 
 app.post("/api/auth/login", loginLimiter, async (req: AuthRequest, res) => {
     const username = String(req.body?.username ?? "").trim();
-    const password = String(req.body?.password ?? "").trim();
+    const password = String(req.body?.password ?? "");
+    if (
+        exceedsLimit(username, maxUsernameLength) ||
+        exceedsLimit(password, maxPasswordLength)
+    ) {
+        res.status(400).json({ message: "입력값을 확인해 주세요." });
+        return;
+    }
 
     const user = await prisma.user.findUnique({ where: { username } });
     if (!user) {
@@ -504,26 +602,44 @@ app.get("/api/contests/:id", requireAuth, async (req, res) => {
     res.json({ contest });
 });
 
-app.get("/api/contests/:id/problems", requireAuth, async (req, res) => {
-    const contestId = parsePositiveInt(req.params.id);
-    if (!contestId) {
-        res.status(400).json({ message: "잘못된 contestId입니다." });
-        return;
-    }
-    const problems = await prisma.problem.findMany({
-        where: { contestId },
-        orderBy: [{ difficulty: "asc" }, { id: "asc" }],
-        select: {
-            id: true,
-            title: true,
-            difficulty: true,
-            timeLimitMs: true,
-            memoryLimitMb: true,
-            submissionType: true,
-        },
-    });
-    res.json({ problems });
-});
+app.get(
+    "/api/contests/:id/problems",
+    requireAuth,
+    async (req: AuthRequest, res) => {
+        const contestId = parsePositiveInt(req.params.id);
+        if (!contestId) {
+            res.status(400).json({ message: "잘못된 contestId입니다." });
+            return;
+        }
+        const contest = await prisma.contest.findUnique({
+            where: { id: contestId },
+            select: { id: true, startAt: true },
+        });
+        if (!contest) {
+            res.status(404).json({ message: "대회를 찾을 수 없습니다." });
+            return;
+        }
+        if (!isAdminRead(req.user?.role) && new Date() < contest.startAt) {
+            res.status(403).json({
+                message: "대회 시작 전에는 문제 목록을 볼 수 없습니다.",
+            });
+            return;
+        }
+        const problems = await prisma.problem.findMany({
+            where: { contestId },
+            orderBy: [{ difficulty: "asc" }, { id: "asc" }],
+            select: {
+                id: true,
+                title: true,
+                difficulty: true,
+                timeLimitMs: true,
+                memoryLimitMb: true,
+                submissionType: true,
+            },
+        });
+        res.json({ problems });
+    },
+);
 
 app.get("/api/problems/:id", requireAuth, async (req: AuthRequest, res) => {
     const problemId = parsePositiveInt(req.params.id);
@@ -574,6 +690,14 @@ app.post(
         const languageInput = String(req.body?.language ?? "").trim();
         const code = String(req.body?.code ?? "");
         const input = String(req.body?.input ?? "");
+
+        if (
+            exceedsLimit(code, maxCodeSize) ||
+            exceedsLimit(input, maxRunInputSize)
+        ) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
 
         if (!problemId || code.trim().length === 0) {
             res.status(400).json({ message: "입력값을 확인해 주세요." });
@@ -628,9 +752,19 @@ app.post(
 
         try {
             await queueEventsReady;
-            const result = await job.waitUntilFinished(queueEvents, 20000);
+            const result = await job.waitUntilFinished(
+                queueEvents,
+                runWaitTimeoutMs,
+            );
             res.json({ result });
         } catch (error) {
+            if (isQueueWaitTimeoutError(error)) {
+                res.status(504).json({
+                    message:
+                        "실행 대기 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
+                });
+                return;
+            }
             res.status(500).json({
                 message:
                     error instanceof Error
@@ -650,6 +784,11 @@ app.post(
         const contestIdInput = parsePositiveInt(req.body?.contestId);
         const languageInput = String(req.body?.language ?? "").trim();
         const code = String(req.body?.code ?? "");
+
+        if (exceedsLimit(code, maxCodeSize)) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
 
         if (!problemId || code.trim().length === 0) {
             res.status(400).json({ message: "입력값을 확인해 주세요." });
@@ -854,6 +993,10 @@ app.post(
 
         const languageInput = String(req.body?.language ?? "").trim();
         const code = String(req.body?.code ?? "");
+        if (exceedsLimit(code, maxCodeSize)) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
         if (code.trim().length === 0) {
             res.status(400).json({ message: "입력값을 확인해 주세요." });
             return;
@@ -935,6 +1078,11 @@ app.post(
         const startAt = new Date(String(req.body?.startAt ?? ""));
         const endAt = new Date(String(req.body?.endAt ?? ""));
 
+        if (exceedsLimit(title, maxContestTitleLength)) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
+
         if (
             !title ||
             Number.isNaN(startAt.getTime()) ||
@@ -972,6 +1120,11 @@ app.put(
         const title = String(req.body?.title ?? "").trim();
         const startAt = new Date(String(req.body?.startAt ?? ""));
         const endAt = new Date(String(req.body?.endAt ?? ""));
+
+        if (exceedsLimit(title, maxContestTitleLength)) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
 
         if (
             !title ||
@@ -1054,10 +1207,17 @@ app.post(
     requireAdminWrite,
     async (req, res) => {
         const username = String(req.body?.username ?? "").trim();
-        const password = String(req.body?.password ?? "").trim();
+        const password = String(req.body?.password ?? "");
         const role = parseRole(req.body?.role);
 
-        if (username.length < 3 || password.length < 4) {
+        if (
+            username.length < 3 ||
+            exceedsLimit(username, maxUsernameLength) ||
+            !isValidPasswordInput(password, {
+                min: minPasswordLength,
+                max: maxPasswordLength,
+            })
+        ) {
             res.status(400).json({
                 message: "아이디와 비밀번호를 확인해 주세요.",
             });
@@ -1096,8 +1256,13 @@ app.put(
             return;
         }
 
-        const password = String(req.body?.password ?? "").trim();
-        if (password.length < 4) {
+        const password = String(req.body?.password ?? "");
+        if (
+            !isValidPasswordInput(password, {
+                min: minPasswordLength,
+                max: maxPasswordLength,
+            })
+        ) {
             res.status(400).json({ message: "비밀번호를 확인해 주세요." });
             return;
         }
@@ -1171,16 +1336,17 @@ app.get(
     async (_req, res) => {
         const problems = await prisma.problem.findMany({
             orderBy: [{ difficulty: "asc" }, { id: "asc" }],
-            include: { contest: true },
+            select: {
+                id: true,
+                title: true,
+                contestId: true,
+                difficulty: true,
+                timeLimitMs: true,
+                memoryLimitMb: true,
+                submissionType: true,
+            },
         });
-        const withStatements = await Promise.all(
-            problems.map(async (problem) => {
-                const statementMd = await readTextFile(problem.statementPath);
-                const { statementPath: _statementPath, ...rest } = problem;
-                return { ...rest, statementMd };
-            }),
-        );
-        res.json({ problems: withStatements });
+        res.json({ problems });
     },
 );
 
@@ -1240,6 +1406,29 @@ app.post(
 
         const hasGeneratorCode = generatorCode.trim().length > 0;
         const hasSolutionCode = solutionCode.trim().length > 0;
+
+        if (
+            exceedsLimit(title, maxProblemTitleLength) ||
+            exceedsLimit(statementMd, maxStatementSize) ||
+            exceedsLimit(sampleInput, maxSampleSize) ||
+            exceedsLimit(sampleOutput, maxSampleSize) ||
+            exceedsLimit(textAnswer, maxTextAnswerSize) ||
+            (hasGeneratorCode &&
+                exceedsLimit(generatorCode, maxGeneratorCodeSize)) ||
+            (hasSolutionCode &&
+                exceedsLimit(solutionCode, maxSolutionCodeSize))
+        ) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
+
+        if (
+            (timeLimitMs !== null && timeLimitMs > maxTimeLimitMs) ||
+            (memoryLimitMb !== null && memoryLimitMb > maxMemoryLimitMb)
+        ) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
 
         if (
             scoreRaw !== undefined &&
@@ -1380,6 +1569,29 @@ app.put(
 
         const hasGeneratorCode = generatorCode.trim().length > 0;
         const hasSolutionCode = solutionCode.trim().length > 0;
+
+        if (
+            exceedsLimit(title, maxProblemTitleLength) ||
+            exceedsLimit(statementMd, maxStatementSize) ||
+            exceedsLimit(sampleInput, maxSampleSize) ||
+            exceedsLimit(sampleOutput, maxSampleSize) ||
+            exceedsLimit(textAnswer, maxTextAnswerSize) ||
+            (hasGeneratorCode &&
+                exceedsLimit(generatorCode, maxGeneratorCodeSize)) ||
+            (hasSolutionCode &&
+                exceedsLimit(solutionCode, maxSolutionCodeSize))
+        ) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
+
+        if (
+            (timeLimitMs !== null && timeLimitMs > maxTimeLimitMs) ||
+            (memoryLimitMb !== null && memoryLimitMb > maxMemoryLimitMb)
+        ) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
 
         if (
             scoreRaw !== undefined &&
@@ -1563,6 +1775,14 @@ app.post(
         const output = String(req.body?.output ?? "");
         const ordInput = parsePositiveInt(req.body?.ord);
 
+        if (
+            exceedsLimit(input, maxTestcaseSize) ||
+            exceedsLimit(output, maxTestcaseSize)
+        ) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
+
         let ord = ordInput ?? null;
         if (!ord) {
             const last = await prisma.testcase.findFirst({
@@ -1616,6 +1836,14 @@ app.put(
         const input = String(req.body?.input ?? "");
         const output = String(req.body?.output ?? "");
         const ord = parsePositiveInt(req.body?.ord);
+
+        if (
+            exceedsLimit(input, maxTestcaseSize) ||
+            exceedsLimit(output, maxTestcaseSize)
+        ) {
+            res.status(400).json({ message: "입력값을 확인해 주세요." });
+            return;
+        }
 
         if (!ord) {
             res.status(400).json({ message: "입력값을 확인해 주세요." });
@@ -1966,12 +2194,18 @@ app.get(
     "/api/admin/access-logs",
     requireAuth,
     requireAdminRead,
-    async (_req, res) => {
+    async (req, res) => {
+        const limit = Math.min(parsePositiveInt(req.query.limit) ?? 200, 1000);
+        const offset = parseNonNegativeInt(req.query.offset) ?? 0;
         const logs = await prisma.accessLog.findMany({
             orderBy: { createdAt: "desc" },
+            take: limit + 1,
+            skip: offset,
             include: { user: { select: { id: true, username: true } } },
         });
-        res.json({ logs });
+        const hasMore = logs.length > limit;
+        const sliced = hasMore ? logs.slice(0, limit) : logs;
+        res.json({ logs: sliced, nextOffset: hasMore ? offset + limit : null });
     },
 );
 

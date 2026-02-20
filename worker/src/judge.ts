@@ -53,7 +53,7 @@ type PreparedProgram = {
 };
 
 type PrepareError = {
-    stage: "write" | "compile";
+    stage: "prepare" | "write" | "compile";
     result: ExecResult;
 };
 
@@ -86,8 +86,34 @@ const languageConfigs: Record<Language, LanguageConfig> = {
 
 const DEFAULT_STDOUT_LIMIT_BYTES = 4 * 1024 * 1024;
 const DEFAULT_STDERR_LIMIT_BYTES = 2 * 1024 * 1024;
+const RUNNER_UID = 1000;
+const RUNNER_GID = 1000;
+const RUNNER_USER = `${RUNNER_UID}:${RUNNER_GID}`;
 
-function normalizeOutput(value: string): string {
+function readEnvLimit(name: string, fallback: number): number {
+    const raw = process.env[name];
+    if (!raw) {
+        return fallback;
+    }
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        return fallback;
+    }
+    return Math.floor(parsed);
+}
+
+const MAX_TIME_LIMIT_MS = readEnvLimit("MAX_TIME_LIMIT_MS", 10_000);
+const MAX_MEMORY_LIMIT_MB = Math.max(
+    64,
+    readEnvLimit("MAX_MEMORY_LIMIT_MB", 512),
+);
+const COMPILE_TIMEOUT_MS = readEnvLimit("COMPILE_TIMEOUT_MS", 20_000);
+const COMPILE_MEMORY_LIMIT_MB = Math.max(
+    256,
+    readEnvLimit("COMPILE_MEMORY_LIMIT_MB", 1024),
+);
+
+export function normalizeOutput(value: string): string {
     return value.replace(/\r\n?/g, "\n");
 }
 
@@ -130,7 +156,7 @@ const timeOutputPrefixes = [
     "Command exited with non-zero status",
 ];
 
-function extractTimeStats(stderr: string): {
+export function extractTimeStats(stderr: string): {
     memoryKb: number | null;
     cleanedStderr: string;
 } {
@@ -154,7 +180,7 @@ function extractTimeStats(stderr: string): {
     return { memoryKb, cleanedStderr: cleanedLines.join("\n").trimEnd() };
 }
 
-function parseGeneratedInputs(output: string): string[] {
+export function parseGeneratedInputs(output: string): string[] {
     const normalized = normalizeOutput(output).trim();
     if (!normalized) {
         return [];
@@ -318,7 +344,9 @@ function buildDockerArgs(options: {
     volumeName: string;
     command: string;
     memoryLimitMb: number;
+    user?: string;
 }): string[] {
+    const user = options.user ?? RUNNER_USER;
     return [
         "run",
         "--rm",
@@ -344,6 +372,8 @@ function buildDockerArgs(options: {
         `${options.volumeName}:/workspace:rw`,
         "-w",
         "/workspace",
+        "--user",
+        user,
         options.image,
         "sh",
         "-c",
@@ -367,10 +397,17 @@ async function writeFileToVolume(
         "ALL",
         "--security-opt",
         "no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "--pids-limit",
+        "64",
         "-v",
         `${volumeName}:/workspace:rw`,
         "-w",
         "/workspace",
+        "--user",
+        RUNNER_USER,
         image,
         "sh",
         "-c",
@@ -436,7 +473,7 @@ function averageStats(stats: AggregateStats): {
     };
 }
 
-function buildOutputLimitDetail(result: ExecResult): string {
+export function buildOutputLimitDetail(result: ExecResult): string {
     const targets: string[] = [];
     if (result.stdoutTruncated) {
         targets.push("표준 출력");
@@ -481,6 +518,31 @@ async function createVolume(volumeName: string): Promise<void> {
     }
 }
 
+async function prepareVolume(
+    image: string,
+    volumeName: string,
+): Promise<ExecResult> {
+    const args = [
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "-v",
+        `${volumeName}:/workspace:rw`,
+        "-w",
+        "/workspace",
+        image,
+        "sh",
+        "-c",
+        `chown -R ${RUNNER_USER} /workspace`,
+    ];
+    return dockerRun(args, undefined, 5000);
+}
+
 async function removeVolume(volumeName: string): Promise<void> {
     await runProcess("docker", ["volume", "rm", "-f", volumeName]);
 }
@@ -491,7 +553,7 @@ async function prepareProgram(options: {
     language: Language;
     code: string;
     image: string;
-    memoryLimitMb: number;
+    compileMemoryLimitMb: number;
     compileTimeoutMs: number;
 }): Promise<{ program: PreparedProgram } | { error: PrepareError }> {
     const config = languageConfigs[options.language];
@@ -500,6 +562,12 @@ async function prepareProgram(options: {
     }-${Date.now()}`;
 
     await createVolume(volumeName);
+
+    const prepareResult = await prepareVolume(options.image, volumeName);
+    if (prepareResult.code !== 0) {
+        await removeVolume(volumeName);
+        return { error: { stage: "prepare", result: prepareResult } };
+    }
 
     const writeResult = await writeFileToVolume(
         options.image,
@@ -522,7 +590,7 @@ async function prepareProgram(options: {
                 image: options.image,
                 volumeName,
                 command: compileCommand,
-                memoryLimitMb: options.memoryLimitMb,
+                memoryLimitMb: options.compileMemoryLimitMb,
             }),
             undefined,
             options.compileTimeoutMs + 1000,
@@ -587,13 +655,19 @@ export async function runSubmission(options: {
         };
     }
 
-    const timeLimitMs =
+    const timeLimitMsRaw =
         Number.isFinite(options.problem.timeLimitMs) &&
         options.problem.timeLimitMs > 0
             ? options.problem.timeLimitMs
             : 1000;
-    const memoryLimitMb = Math.max(64, options.problem.memoryLimitMb || 256);
-    const compileTimeoutMs = 10000;
+    const timeLimitMs = Math.min(MAX_TIME_LIMIT_MS, timeLimitMsRaw);
+    const memoryLimitRaw = Math.max(64, options.problem.memoryLimitMb || 256);
+    const memoryLimitMb = Math.min(MAX_MEMORY_LIMIT_MB, memoryLimitRaw);
+    const compileTimeoutMs = COMPILE_TIMEOUT_MS;
+    const compileMemoryLimitMb = Math.max(
+        memoryLimitMb,
+        COMPILE_MEMORY_LIMIT_MB,
+    );
 
     let program: PreparedProgram | null = null;
 
@@ -604,7 +678,7 @@ export async function runSubmission(options: {
             language: options.language,
             code: options.code,
             image: options.image,
-            memoryLimitMb,
+            compileMemoryLimitMb,
             compileTimeoutMs,
         });
 
@@ -636,7 +710,10 @@ export async function runSubmission(options: {
             }
             return {
                 status: SubmissionStatus.SYSTEM_ERROR,
-                message: "시스템 오류",
+                message:
+                    stage === "prepare"
+                        ? "샌드박스 준비 실패"
+                        : "시스템 오류",
                 stdout: result.stdout,
                 stderr: formatExecError(result),
             };
@@ -760,13 +837,19 @@ export async function judgeSubmission(options: {
             detail: "채점 테스트케이스가 없습니다.",
         };
     }
-    const timeLimitMs =
+    const timeLimitMsRaw =
         Number.isFinite(options.problem.timeLimitMs) &&
         options.problem.timeLimitMs > 0
             ? options.problem.timeLimitMs
             : 1000;
-    const memoryLimitMb = Math.max(64, options.problem.memoryLimitMb || 256);
-    const compileTimeoutMs = 10000;
+    const timeLimitMs = Math.min(MAX_TIME_LIMIT_MS, timeLimitMsRaw);
+    const memoryLimitRaw = Math.max(64, options.problem.memoryLimitMb || 256);
+    const memoryLimitMb = Math.min(MAX_MEMORY_LIMIT_MB, memoryLimitRaw);
+    const compileTimeoutMs = COMPILE_TIMEOUT_MS;
+    const compileMemoryLimitMb = Math.max(
+        memoryLimitMb,
+        COMPILE_MEMORY_LIMIT_MB,
+    );
     const stats = createAggregateStats();
     const volumesToCleanup: string[] = [];
 
@@ -777,7 +860,7 @@ export async function judgeSubmission(options: {
             language: options.language,
             code: options.code,
             image: options.image,
-            memoryLimitMb,
+            compileMemoryLimitMb,
             compileTimeoutMs,
         });
 
@@ -806,7 +889,10 @@ export async function judgeSubmission(options: {
             }
             return {
                 status: SubmissionStatus.SYSTEM_ERROR,
-                message: "시스템 오류",
+                message:
+                    submissionPrepared.error.stage === "prepare"
+                        ? "샌드박스 준비 실패"
+                        : "시스템 오류",
                 detail: formatExecError(result),
             };
         }
@@ -920,7 +1006,7 @@ export async function judgeSubmission(options: {
             language: options.problem.generatorLanguage!,
             code: options.problem.generatorCode!,
             image: options.image,
-            memoryLimitMb,
+            compileMemoryLimitMb,
             compileTimeoutMs,
         });
 
@@ -1025,7 +1111,7 @@ export async function judgeSubmission(options: {
             language: options.problem.solutionLanguage!,
             code: options.problem.solutionCode!,
             image: options.image,
-            memoryLimitMb,
+            compileMemoryLimitMb,
             compileTimeoutMs,
         });
 

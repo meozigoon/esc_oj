@@ -17,7 +17,7 @@ import {
     apiFetch,
     Contest,
     Language,
-    Problem,
+    ProblemSummary,
     ProblemDifficulty,
     SubmissionType,
 } from "../../api";
@@ -55,7 +55,7 @@ const judgeModeOptions: Array<{ value: JudgeMode; label: string }> = [
 export default function AdminProblemsPage() {
     const { user } = useAuth();
     const isReadOnly = user?.role === "viewer";
-    const [problems, setProblems] = useState<Problem[]>([]);
+    const [problems, setProblems] = useState<ProblemSummary[]>([]);
     const [contests, setContests] = useState<Contest[]>([]);
     const [title, setTitle] = useState("");
     const [statementMd, setStatementMd] = useState("");
@@ -82,7 +82,7 @@ export default function AdminProblemsPage() {
 
     const fetchAll = useCallback(() => {
         setError(null);
-        apiFetch<{ problems: Problem[] }>("/api/admin/problems")
+        apiFetch<{ problems: ProblemSummary[] }>("/api/admin/problems")
             .then((data) => setProblems(data.problems))
             .catch((err) =>
                 setError(

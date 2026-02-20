@@ -43,6 +43,11 @@ const mathTags = [
 const markdownSchema = {
     ...defaultSchema,
     tagNames: [...(defaultSchema.tagNames || []), ...mathTags],
+    protocols: {
+        ...defaultSchema.protocols,
+        href: ["http", "https", "mailto"],
+        src: ["http", "https"],
+    },
     attributes: {
         ...defaultSchema.attributes,
         img: [
@@ -56,14 +61,9 @@ const markdownSchema = {
         span: [
             ...((defaultSchema.attributes || {}).span || []),
             "className",
-            "style",
             "aria-hidden",
         ],
-        div: [
-            ...((defaultSchema.attributes || {}).div || []),
-            "className",
-            "style",
-        ],
+        div: [...((defaultSchema.attributes || {}).div || []), "className"],
         math: [
             ...((defaultSchema.attributes || {}).math || []),
             "xmlns",
@@ -84,6 +84,16 @@ const markdownSchema = {
 };
 
 const components: Components = {
+    a: ({ href, children, ...props }) => (
+        <a
+            {...props}
+            href={href}
+            target="_blank"
+            rel="noreferrer noopener"
+        >
+            {children}
+        </a>
+    ),
     img: ({ ...props }) => (
         <img
             {...props}
