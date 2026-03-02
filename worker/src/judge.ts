@@ -49,6 +49,7 @@ type TestcaseInput = {
 
 type PreparedProgram = {
     volumeName: string;
+    containerName: string;
     config: LanguageConfig;
 };
 
@@ -86,9 +87,10 @@ const languageConfigs: Record<Language, LanguageConfig> = {
 
 const DEFAULT_STDOUT_LIMIT_BYTES = 4 * 1024 * 1024;
 const DEFAULT_STDERR_LIMIT_BYTES = 2 * 1024 * 1024;
-const RUNNER_UID = 1000;
-const RUNNER_GID = 1000;
+const RUNNER_UID = 0;
+const RUNNER_GID = 0;
 const RUNNER_USER = `${RUNNER_UID}:${RUNNER_GID}`;
+const SANDBOX_NAME_SUFFIX_LENGTH = 8;
 
 function readEnvLimit(name: string, fallback: number): number {
     const raw = process.env[name];
@@ -100,6 +102,31 @@ function readEnvLimit(name: string, fallback: number): number {
         return fallback;
     }
     return Math.floor(parsed);
+}
+
+function readEnvFlag(name: string, fallback: boolean): boolean {
+    const raw = process.env[name];
+    if (!raw) {
+        return fallback;
+    }
+    const normalized = raw.trim().toLowerCase();
+    if (
+        normalized === "1" ||
+        normalized === "true" ||
+        normalized === "yes" ||
+        normalized === "on"
+    ) {
+        return true;
+    }
+    if (
+        normalized === "0" ||
+        normalized === "false" ||
+        normalized === "no" ||
+        normalized === "off"
+    ) {
+        return false;
+    }
+    return fallback;
 }
 
 const MAX_TIME_LIMIT_MS = readEnvLimit("MAX_TIME_LIMIT_MS", 10_000);
@@ -128,6 +155,7 @@ const SANDBOX_ALLOW_UNLIMITED_VOLUME_FALLBACK =
     (process.env.SANDBOX_ALLOW_UNLIMITED_VOLUME_FALLBACK ?? "false")
         .trim()
         .toLowerCase() === "true";
+const SANDBOX_USE_TMPFS = readEnvFlag("SANDBOX_USE_TMPFS", false);
 
 export function normalizeOutput(value: string): string {
     return value.replace(/\r\n?/g, "\n");
@@ -355,7 +383,14 @@ async function dockerRun(
     return runProcess("docker", args, input, timeoutMs);
 }
 
-function buildDockerArgs(options: {
+function createSandboxNameSuffix(): string {
+    const randomPart = Math.random()
+        .toString(36)
+        .slice(2, 2 + SANDBOX_NAME_SUFFIX_LENGTH);
+    return `${Date.now()}-${randomPart}`;
+}
+
+function buildDockerRunArgs(options: {
     image: string;
     volumeName: string;
     command: string;
@@ -399,6 +434,73 @@ function buildDockerArgs(options: {
         "sh",
         "-c",
         command,
+    ];
+}
+
+function buildDockerExecArgs(options: {
+    containerName: string;
+    command: string;
+    user?: string;
+}): string[] {
+    const user = options.user ?? RUNNER_USER;
+    const fileSizeBlocks = Math.max(
+        1,
+        Math.floor(SANDBOX_MAX_FILE_BYTES / 512),
+    );
+    const command = `ulimit -f ${fileSizeBlocks}; ${options.command}`;
+    return [
+        "exec",
+        "-i",
+        "--user",
+        user,
+        options.containerName,
+        "sh",
+        "-c",
+        command,
+    ];
+}
+
+function buildSandboxContainerArgs(options: {
+    image: string;
+    volumeName: string;
+    containerName: string;
+    memoryLimitMb: number;
+    user?: string;
+}): string[] {
+    const user = options.user ?? RUNNER_USER;
+    return [
+        "run",
+        "-d",
+        "--rm",
+        "--name",
+        options.containerName,
+        "--network",
+        "none",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "--pids-limit",
+        "64",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "--cpus",
+        "1",
+        "--memory",
+        `${options.memoryLimitMb}m`,
+        "--memory-swap",
+        `${options.memoryLimitMb}m`,
+        "-v",
+        `${options.volumeName}:/workspace:rw`,
+        "-w",
+        "/workspace",
+        "--user",
+        user,
+        options.image,
+        "sh",
+        "-c",
+        "tail -f /dev/null",
     ];
 }
 
@@ -517,7 +619,7 @@ function createProgressReporter(
     onProgress?: (progress: JudgeProgress) => Promise<void> | void,
 ) {
     let lastPercent = -1;
-    return async (current: number) => {
+    return (current: number) => {
         if (!onProgress || total <= 0) {
             return;
         }
@@ -527,7 +629,12 @@ function createProgressReporter(
         }
         lastPercent = percent;
         try {
-            await onProgress({ current, total, percent });
+            const pending = onProgress({ current, total, percent });
+            if (pending && typeof (pending as Promise<void>).then === "function") {
+                void (pending as Promise<void>).catch(() => {
+                    // ignore progress update failures
+                });
+            }
         } catch {
             // ignore progress update failures
         }
@@ -535,6 +642,16 @@ function createProgressReporter(
 }
 
 async function createVolume(volumeName: string): Promise<void> {
+    if (!SANDBOX_USE_TMPFS) {
+        const result = await runProcess("docker", ["volume", "create", volumeName]);
+        if (result.code !== 0) {
+            throw new Error(
+                result.stderr || result.stdout || "Failed to create volume",
+            );
+        }
+        return;
+    }
+
     const secureCreateArgs = [
         "volume",
         "create",
@@ -579,13 +696,26 @@ async function prepareVolume(
         image,
         "sh",
         "-c",
-        `chown -R ${RUNNER_USER} /workspace`,
+        "true",
     ];
     return dockerRun(args, undefined, 5000);
 }
 
 async function removeVolume(volumeName: string): Promise<void> {
     await runProcess("docker", ["volume", "rm", "-f", volumeName]);
+}
+
+async function removeContainer(containerName: string): Promise<void> {
+    await runProcess("docker", ["rm", "-f", containerName]);
+}
+
+async function startSandboxContainer(options: {
+    image: string;
+    volumeName: string;
+    containerName: string;
+    memoryLimitMb: number;
+}): Promise<ExecResult> {
+    return runProcess("docker", buildSandboxContainerArgs(options), undefined, 5000);
 }
 
 async function prepareProgram(options: {
@@ -596,11 +726,12 @@ async function prepareProgram(options: {
     image: string;
     compileMemoryLimitMb: number;
     compileTimeoutMs: number;
+    runMemoryLimitMb: number;
 }): Promise<{ program: PreparedProgram } | { error: PrepareError }> {
     const config = languageConfigs[options.language];
-    const volumeName = `oj-${options.label}-${
-        options.submissionId
-    }-${Date.now()}`;
+    const suffix = createSandboxNameSuffix();
+    const volumeName = `oj-${options.label}-${options.submissionId}-${suffix}`;
+    const containerName = `ojc-${options.label}-${options.submissionId}-${suffix}`;
 
     await createVolume(volumeName);
 
@@ -627,7 +758,7 @@ async function prepareProgram(options: {
             options.compileTimeoutMs,
         );
         const compileResult = await dockerRun(
-            buildDockerArgs({
+            buildDockerRunArgs({
                 image: options.image,
                 volumeName,
                 command: compileCommand,
@@ -643,26 +774,35 @@ async function prepareProgram(options: {
         }
     }
 
-    return { program: { volumeName, config } };
+    const startResult = await startSandboxContainer({
+        image: options.image,
+        volumeName,
+        containerName,
+        memoryLimitMb: options.runMemoryLimitMb,
+    });
+    if (startResult.code !== 0) {
+        await removeContainer(containerName);
+        await removeVolume(volumeName);
+        return { error: { stage: "prepare", result: startResult } };
+    }
+
+    return { program: { volumeName, containerName, config } };
 }
 
 async function runProgram(options: {
     program: PreparedProgram;
-    image: string;
     input: string;
     timeLimitMs: number;
-    memoryLimitMb: number;
 }): Promise<ExecResult> {
     const runCommand = wrapTimedCommand(
         options.program.config.run,
         options.timeLimitMs,
     );
-    const result = await dockerRun(
-        buildDockerArgs({
-            image: options.image,
-            volumeName: options.program.volumeName,
+    const result = await runProcess(
+        "docker",
+        buildDockerExecArgs({
+            containerName: options.program.containerName,
             command: runCommand,
-            memoryLimitMb: options.memoryLimitMb,
         }),
         options.input,
         options.timeLimitMs + 1000,
@@ -721,6 +861,7 @@ export async function runSubmission(options: {
             image: options.image,
             compileMemoryLimitMb,
             compileTimeoutMs,
+            runMemoryLimitMb: memoryLimitMb,
         });
 
         if ("error" in prepared) {
@@ -764,10 +905,8 @@ export async function runSubmission(options: {
         const start = Date.now();
         const runResult = await runProgram({
             program,
-            image: options.image,
             input: options.input,
             timeLimitMs,
-            memoryLimitMb,
         });
         const runtimeMs = Date.now() - start;
 
@@ -829,6 +968,7 @@ export async function runSubmission(options: {
         };
     } finally {
         if (program) {
+            await removeContainer(program.containerName);
             await removeVolume(program.volumeName);
         }
     }
@@ -892,7 +1032,7 @@ export async function judgeSubmission(options: {
         COMPILE_MEMORY_LIMIT_MB,
     );
     const stats = createAggregateStats();
-    const volumesToCleanup: string[] = [];
+    const programsToCleanup: PreparedProgram[] = [];
 
     try {
         const submissionPrepared = await prepareProgram({
@@ -903,6 +1043,7 @@ export async function judgeSubmission(options: {
             image: options.image,
             compileMemoryLimitMb,
             compileTimeoutMs,
+            runMemoryLimitMb: memoryLimitMb,
         });
 
         if ("error" in submissionPrepared) {
@@ -939,7 +1080,7 @@ export async function judgeSubmission(options: {
         }
 
         const submissionProgram = submissionPrepared.program;
-        volumesToCleanup.push(submissionProgram.volumeName);
+        programsToCleanup.push(submissionProgram);
 
         if (!useGeneratedTests) {
             const total = options.testcases.length;
@@ -952,15 +1093,13 @@ export async function judgeSubmission(options: {
                 const start = Date.now();
                 const runResult = await runProgram({
                     program: submissionProgram,
-                    image: options.image,
                     input: testcase.input,
                     timeLimitMs,
-                    memoryLimitMb,
                 });
                 const elapsed = Date.now() - start;
                 recordStats(stats, elapsed, runResult.memoryKb);
                 const averages = averageStats(stats);
-                await reportProgress(index + 1);
+                reportProgress(index + 1);
 
                 if (runResult.timedOut || runResult.code === 124) {
                     return {
@@ -1049,6 +1188,7 @@ export async function judgeSubmission(options: {
             image: options.image,
             compileMemoryLimitMb,
             compileTimeoutMs,
+            runMemoryLimitMb: memoryLimitMb,
         });
 
         if ("error" in generatorPrepared) {
@@ -1061,7 +1201,7 @@ export async function judgeSubmission(options: {
         }
 
         const generatorProgram = generatorPrepared.program;
-        volumesToCleanup.push(generatorProgram.volumeName);
+        programsToCleanup.push(generatorProgram);
         const generatorTimeoutMs = Math.max(2000, timeLimitMs);
         const generatedTestcaseCount = MAX_GENERATED_TESTCASE_COUNT;
         const generatedInputs: string[] = [];
@@ -1069,10 +1209,8 @@ export async function judgeSubmission(options: {
         for (let attempt = 0; attempt < generatedTestcaseCount; attempt += 1) {
             const generatorRun = await runProgram({
                 program: generatorProgram,
-                image: options.image,
                 input: "",
                 timeLimitMs: generatorTimeoutMs,
-                memoryLimitMb,
             });
 
             if (generatorRun.timedOut || generatorRun.code === 124) {
@@ -1154,6 +1292,7 @@ export async function judgeSubmission(options: {
             image: options.image,
             compileMemoryLimitMb,
             compileTimeoutMs,
+            runMemoryLimitMb: memoryLimitMb,
         });
 
         if ("error" in solutionPrepared) {
@@ -1166,7 +1305,7 @@ export async function judgeSubmission(options: {
         }
 
         const solutionProgram = solutionPrepared.program;
-        volumesToCleanup.push(solutionProgram.volumeName);
+        programsToCleanup.push(solutionProgram);
 
         for (let index = 0; index < generatedTestcases.length; index += 1) {
             const input = generatedTestcases[index];
@@ -1174,10 +1313,8 @@ export async function judgeSubmission(options: {
 
             const solutionRun = await runProgram({
                 program: solutionProgram,
-                image: options.image,
                 input,
                 timeLimitMs,
-                memoryLimitMb,
             });
 
             if (solutionRun.timedOut || solutionRun.code === 124) {
@@ -1212,15 +1349,13 @@ export async function judgeSubmission(options: {
             const start = Date.now();
             const submissionRun = await runProgram({
                 program: submissionProgram,
-                image: options.image,
                 input,
                 timeLimitMs,
-                memoryLimitMb,
             });
             const elapsed = Date.now() - start;
             recordStats(stats, elapsed, submissionRun.memoryKb);
             const averages = averageStats(stats);
-            await reportProgress(index + 1);
+            reportProgress(index + 1);
 
             if (submissionRun.timedOut || submissionRun.code === 124) {
                 return {
@@ -1308,6 +1443,11 @@ export async function judgeSubmission(options: {
             detail: error instanceof Error ? error.message : "Unknown error",
         };
     } finally {
-        await Promise.all(volumesToCleanup.map((name) => removeVolume(name)));
+        await Promise.all(
+            programsToCleanup.map(async (program) => {
+                await removeContainer(program.containerName);
+                await removeVolume(program.volumeName);
+            }),
+        );
     }
 }

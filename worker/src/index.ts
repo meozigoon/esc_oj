@@ -54,6 +54,10 @@ if (!judgeImageAllowlist.has(judgeImage)) {
 }
 const dataDir = resolveDataDir(process.env.DATA_DIR);
 const maxTestcaseCount = readEnvLimit("MAX_TESTCASE_COUNT", 200);
+const progressUpdateStepPercent = Math.min(
+    100,
+    Math.max(1, readEnvLimit("PROGRESS_UPDATE_STEP_PERCENT", 5)),
+);
 
 function resolveDataDir(value?: string): string {
     if (!value) {
@@ -138,13 +142,28 @@ async function processRunJob(job: { id?: string; data?: unknown }) {
     });
 }
 
-async function processJudgeJob(job: { data?: unknown }) {
+function isLegacyRunJobData(data: Record<string, unknown>): boolean {
+    const problemId = Number(data.problemId);
+    const code = String(data.code ?? "");
+    return (
+        Number.isFinite(problemId) &&
+        problemId > 0 &&
+        typeof data.language === "string" &&
+        code.trim().length > 0
+    );
+}
+
+async function processJudgeJob(job: { id?: string; data?: unknown }) {
     const data =
         job.data && typeof job.data === "object"
             ? (job.data as Record<string, unknown>)
             : {};
     const submissionId = Number(data.submissionId);
     if (!Number.isFinite(submissionId) || submissionId <= 0) {
+        if (isLegacyRunJobData(data)) {
+            // Backward compatibility: old servers may enqueue run jobs to the judge queue.
+            return processRunJob(job);
+        }
         return;
     }
 
@@ -182,13 +201,18 @@ async function processJudgeJob(job: { data?: unknown }) {
             });
             return;
         }
-        const testcases: Array<{ ord: number; input: string; output: string }> =
-            [];
-        for (const testcase of testcaseRows) {
-            const input = await readTextFile(testcase.inputPath);
-            const output = await readTextFile(testcase.outputPath);
-            testcases.push({ ord: testcase.ord, input, output });
-        }
+        const testcases = await Promise.all(
+            testcaseRows.map(async (testcase) => {
+                const [input, output] = await Promise.all([
+                    readTextFile(testcase.inputPath),
+                    readTextFile(testcase.outputPath),
+                ]);
+                return { ord: testcase.ord, input, output };
+            }),
+        );
+
+        let lastProgressPercent = -1;
+        let progressUpdateQueue = Promise.resolve();
 
         const result = await judgeSubmission({
             submissionId,
@@ -197,16 +221,30 @@ async function processJudgeJob(job: { data?: unknown }) {
             problem: submission.problem,
             testcases,
             image: judgeImage,
-            onProgress: async (progress: JudgeProgress) => {
-                await prisma.submission.updateMany({
-                    where: {
-                        id: submissionId,
-                        status: SubmissionStatus.RUNNING,
-                    },
-                    data: {
-                        message: `채점 중 (${progress.percent}%)`,
-                    },
-                });
+            onProgress: (progress: JudgeProgress) => {
+                const shouldUpdate =
+                    progress.percent === 100 ||
+                    progress.percent >=
+                        lastProgressPercent + progressUpdateStepPercent;
+                if (!shouldUpdate || progress.percent === lastProgressPercent) {
+                    return;
+                }
+                lastProgressPercent = progress.percent;
+                progressUpdateQueue = progressUpdateQueue
+                    .then(async () => {
+                        await prisma.submission.updateMany({
+                            where: {
+                                id: submissionId,
+                                status: SubmissionStatus.RUNNING,
+                            },
+                            data: {
+                                message: `채점 중 (${progress.percent}%)`,
+                            },
+                        });
+                    })
+                    .catch(() => {
+                        // ignore progress update failures
+                    });
             },
         });
         if (

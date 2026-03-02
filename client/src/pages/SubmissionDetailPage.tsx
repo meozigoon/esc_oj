@@ -1,5 +1,5 @@
 ﻿import { Button, Stack, Typography } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
     apiFetch,
@@ -28,21 +28,33 @@ export default function SubmissionDetailPage() {
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
     const isAccepted = submission?.status === "ACCEPTED";
+    const requestIdRef = useRef(0);
 
-    const fetchSubmission = useCallback(async () => {
+    const fetchSubmission = useCallback(async (reset = false) => {
+        const requestId = requestIdRef.current + 1;
+        requestIdRef.current = requestId;
+
         if (!isValidSubmissionId) {
             setSubmission(null);
             setError("잘못된 submissionId입니다.");
             return;
         }
         setError(null);
-        setSubmission(null);
+        if (reset) {
+            setSubmission(null);
+        }
         try {
             const data = await apiFetch<{ submission: Submission }>(
                 `/api/submissions/${submissionId}`,
             );
+            if (requestIdRef.current !== requestId) {
+                return;
+            }
             setSubmission(data.submission);
         } catch (err) {
+            if (requestIdRef.current !== requestId) {
+                return;
+            }
             if (isAccessError(err)) {
                 setSubmission(null);
                 setError(null);
@@ -59,7 +71,7 @@ export default function SubmissionDetailPage() {
     }, [submissionId, isValidSubmissionId, navigate]);
 
     useEffect(() => {
-        fetchSubmission();
+        fetchSubmission(true);
     }, [fetchSubmission]);
 
     const shouldPoll =

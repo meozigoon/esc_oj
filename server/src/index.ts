@@ -183,6 +183,46 @@ const defaultDifficulty: ProblemDifficulty = "MID";
 const defaultScore = 100;
 const submissionStatusSet = new Set(Object.values(SubmissionStatus));
 
+type RunResultPayload = {
+    status: SubmissionStatus;
+    message: string;
+    stdout: string;
+    stderr: string;
+    runtimeMs?: number | null;
+    memoryKb?: number | null;
+};
+
+function isRunResultPayload(value: unknown): value is RunResultPayload {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+    const record = value as Record<string, unknown>;
+    if (
+        typeof record.status !== "string" ||
+        !submissionStatusSet.has(record.status as SubmissionStatus) ||
+        typeof record.message !== "string" ||
+        typeof record.stdout !== "string" ||
+        typeof record.stderr !== "string"
+    ) {
+        return false;
+    }
+    if (
+        record.runtimeMs !== undefined &&
+        record.runtimeMs !== null &&
+        typeof record.runtimeMs !== "number"
+    ) {
+        return false;
+    }
+    if (
+        record.memoryKb !== undefined &&
+        record.memoryKb !== null &&
+        typeof record.memoryKb !== "number"
+    ) {
+        return false;
+    }
+    return true;
+}
+
 function resolveJwtSecret(): string {
     const secret = process.env.JWT_SECRET?.trim();
     if (!secret) {
@@ -801,6 +841,17 @@ app.post(
                     runQueueEvents,
                     runWaitTimeoutMs,
                 );
+                if (!isRunResultPayload(result)) {
+                    console.error(
+                        "Invalid run result payload from worker",
+                        JSON.stringify({ jobId: job.id, result }),
+                    );
+                    res.status(502).json({
+                        message:
+                            "실행 결과를 받을 수 없습니다. 워커 설정을 확인해 주세요.",
+                    });
+                    return;
+                }
                 res.json({ result });
             } catch (error) {
                 if (isQueueWaitTimeoutError(error)) {
@@ -1804,12 +1855,18 @@ app.get(
             return;
         }
         const enriched = await Promise.all(
-            testcases.map(async (testcase) => ({
-                id: testcase.id,
-                ord: testcase.ord,
-                input: await readTextFile(testcase.inputPath),
-                output: await readTextFile(testcase.outputPath),
-            })),
+            testcases.map(async (testcase) => {
+                const [input, output] = await Promise.all([
+                    readTextFile(testcase.inputPath),
+                    readTextFile(testcase.outputPath),
+                ]);
+                return {
+                    id: testcase.id,
+                    ord: testcase.ord,
+                    input,
+                    output,
+                };
+            }),
         );
         res.json({ testcases: enriched });
     },

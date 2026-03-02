@@ -77,6 +77,19 @@ function isAccessError(err: unknown): boolean {
     return status === 401 || status === 403 || status === 404;
 }
 
+function isRunResultPayload(value: unknown): value is RunResult {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+    const record = value as Record<string, unknown>;
+    return (
+        typeof record.status === "string" &&
+        typeof record.message === "string" &&
+        typeof record.stdout === "string" &&
+        typeof record.stderr === "string"
+    );
+}
+
 export default function ProblemDetailPage() {
     const { id } = useParams();
     const problemId = Number(id);
@@ -274,6 +287,11 @@ export default function ProblemDetailPage() {
                     }),
                 },
             );
+            if (!isRunResultPayload(data.result)) {
+                throw new Error(
+                    "실행 결과를 받지 못했습니다. 서버/워커 설정을 확인해 주세요.",
+                );
+            }
             setRunResult(data.result);
         } catch (err) {
             setRunError(
