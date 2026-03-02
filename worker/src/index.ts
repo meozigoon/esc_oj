@@ -261,7 +261,7 @@ async function processJudgeJob(job: { id?: string; data?: unknown }) {
                 ? result.detail
                     ? "채점 중 내부 오류가 발생했습니다."
                     : null
-                : result.detail ?? null;
+                : (result.detail ?? null);
 
         await prisma.submission.update({
             where: { id: submissionId },
@@ -275,7 +275,10 @@ async function processJudgeJob(job: { id?: string; data?: unknown }) {
             },
         });
     } catch (error) {
-        console.error(`Judge worker failed on submission ${submissionId}`, error);
+        console.error(
+            `Judge worker failed on submission ${submissionId}`,
+            error,
+        );
         await prisma.submission.updateMany({
             where: { id: submissionId },
             data: {
