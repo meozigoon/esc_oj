@@ -11,46 +11,66 @@ import "./styles/global.css";
 import { devtoolsBanner } from "./devtoolsBanner";
 import { ThemeModeProvider } from "./themeMode";
 
-const knownExtensionAsyncResponseErrors = [
-    "A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received",
-    "The message port closed before a response was received",
+const knownExtensionAsyncResponseErrorFragments = [
+    "a listener indicated an asynchronous response by returning true",
+    "the message channel closed before a response was received",
+    "the message port closed before a response was received",
 ];
 
-function getRejectionMessage(reason: unknown): string {
-    if (reason instanceof Error) {
-        return reason.message;
+function getErrorMessage(value: unknown): string {
+    if (value instanceof Error) {
+        return value.message;
     }
-    if (typeof reason === "string") {
-        return reason;
+    if (typeof value === "string") {
+        return value;
     }
     if (
-        reason &&
-        typeof reason === "object" &&
-        "message" in reason &&
-        typeof (reason as { message?: unknown }).message === "string"
+        value &&
+        typeof value === "object" &&
+        "message" in value &&
+        typeof (value as { message?: unknown }).message === "string"
     ) {
-        return (reason as { message: string }).message;
+        return (value as { message: string }).message;
     }
     return "";
 }
 
-function installUnhandledRejectionGuard() {
+function isKnownExtensionAsyncResponseError(value: unknown): boolean {
+    const message = getErrorMessage(value).toLowerCase();
+    if (!message) {
+        return false;
+    }
+    return knownExtensionAsyncResponseErrorFragments.some((fragment) =>
+        message.includes(fragment),
+    );
+}
+
+function installAsyncResponseNoiseGuard() {
     window.addEventListener("unhandledrejection", (event) => {
-        const message = getRejectionMessage(event.reason);
-        if (!message) {
-            return;
+        if (isKnownExtensionAsyncResponseError(event.reason)) {
+            event.preventDefault();
         }
+    });
+
+    window.addEventListener("error", (event) => {
         if (
-            knownExtensionAsyncResponseErrors.some((known) =>
-                message.includes(known),
-            )
+            isKnownExtensionAsyncResponseError(event.error) ||
+            isKnownExtensionAsyncResponseError(event.message)
         ) {
             event.preventDefault();
         }
     });
+
+    const originalConsoleError = console.error.bind(console);
+    console.error = (...args) => {
+        if (args.some((arg) => isKnownExtensionAsyncResponseError(arg))) {
+            return;
+        }
+        originalConsoleError(...args);
+    };
 }
 
-installUnhandledRejectionGuard();
+installAsyncResponseNoiseGuard();
 
 if (import.meta.env.DEV && devtoolsBanner.trim()) {
     console.log(devtoolsBanner);

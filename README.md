@@ -202,8 +202,34 @@ npm run dev
 
 ## DB 확인
 
+1. Prisma Studio(GUI)로 확인
+
 ```bash
 npx prisma studio --schema=prisma/schema.prisma
+```
+
+2. Postgres 컨테이너 상태 확인
+
+```bash
+docker compose ps postgres
+docker compose logs -f postgres
+```
+
+3. SQL로 직접 조회 (`psql`)
+
+```bash
+docker compose exec postgres psql -U oj -d oj
+```
+
+```sql
+\dt
+SELECT * FROM "User" LIMIT 10;
+```
+
+DB 컨테이너가 실행 중이 아니라면 먼저 실행:
+
+```bash
+docker compose up -d postgres
 ```
 
 ## 참고
