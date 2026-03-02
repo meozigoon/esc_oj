@@ -85,12 +85,7 @@ const markdownSchema = {
 
 const components: Components = {
     a: ({ href, children, ...props }) => (
-        <a
-            {...props}
-            href={href}
-            target="_blank"
-            rel="noreferrer noopener"
-        >
+        <a {...props} href={href} target="_blank" rel="noreferrer noopener">
             {children}
         </a>
     ),

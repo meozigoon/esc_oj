@@ -30,45 +30,48 @@ export default function SubmissionDetailPage() {
     const isAccepted = submission?.status === "ACCEPTED";
     const requestIdRef = useRef(0);
 
-    const fetchSubmission = useCallback(async (reset = false) => {
-        const requestId = requestIdRef.current + 1;
-        requestIdRef.current = requestId;
+    const fetchSubmission = useCallback(
+        async (reset = false) => {
+            const requestId = requestIdRef.current + 1;
+            requestIdRef.current = requestId;
 
-        if (!isValidSubmissionId) {
-            setSubmission(null);
-            setError("잘못된 submissionId입니다.");
-            return;
-        }
-        setError(null);
-        if (reset) {
-            setSubmission(null);
-        }
-        try {
-            const data = await apiFetch<{ submission: Submission }>(
-                `/api/submissions/${submissionId}`,
-            );
-            if (requestIdRef.current !== requestId) {
-                return;
-            }
-            setSubmission(data.submission);
-        } catch (err) {
-            if (requestIdRef.current !== requestId) {
-                return;
-            }
-            if (isAccessError(err)) {
+            if (!isValidSubmissionId) {
                 setSubmission(null);
-                setError(null);
-                navigate("/submissions", { replace: true });
+                setError("잘못된 submissionId입니다.");
                 return;
             }
-            setSubmission(null);
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "제출을 불러오지 못했습니다.",
-            );
-        }
-    }, [submissionId, isValidSubmissionId, navigate]);
+            setError(null);
+            if (reset) {
+                setSubmission(null);
+            }
+            try {
+                const data = await apiFetch<{ submission: Submission }>(
+                    `/api/submissions/${submissionId}`,
+                );
+                if (requestIdRef.current !== requestId) {
+                    return;
+                }
+                setSubmission(data.submission);
+            } catch (err) {
+                if (requestIdRef.current !== requestId) {
+                    return;
+                }
+                if (isAccessError(err)) {
+                    setSubmission(null);
+                    setError(null);
+                    navigate("/submissions", { replace: true });
+                    return;
+                }
+                setSubmission(null);
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "제출을 불러오지 못했습니다.",
+                );
+            }
+        },
+        [submissionId, isValidSubmissionId, navigate],
+    );
 
     useEffect(() => {
         fetchSubmission(true);

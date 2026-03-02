@@ -630,7 +630,10 @@ function createProgressReporter(
         lastPercent = percent;
         try {
             const pending = onProgress({ current, total, percent });
-            if (pending && typeof (pending as Promise<void>).then === "function") {
+            if (
+                pending &&
+                typeof (pending as Promise<void>).then === "function"
+            ) {
                 void (pending as Promise<void>).catch(() => {
                     // ignore progress update failures
                 });
@@ -643,7 +646,11 @@ function createProgressReporter(
 
 async function createVolume(volumeName: string): Promise<void> {
     if (!SANDBOX_USE_TMPFS) {
-        const result = await runProcess("docker", ["volume", "create", volumeName]);
+        const result = await runProcess("docker", [
+            "volume",
+            "create",
+            volumeName,
+        ]);
         if (result.code !== 0) {
             throw new Error(
                 result.stderr || result.stdout || "Failed to create volume",
@@ -715,7 +722,12 @@ async function startSandboxContainer(options: {
     containerName: string;
     memoryLimitMb: number;
 }): Promise<ExecResult> {
-    return runProcess("docker", buildSandboxContainerArgs(options), undefined, 5000);
+    return runProcess(
+        "docker",
+        buildSandboxContainerArgs(options),
+        undefined,
+        5000,
+    );
 }
 
 async function prepareProgram(options: {
@@ -893,9 +905,7 @@ export async function runSubmission(options: {
             return {
                 status: SubmissionStatus.SYSTEM_ERROR,
                 message:
-                    stage === "prepare"
-                        ? "샌드박스 준비 실패"
-                        : "시스템 오류",
+                    stage === "prepare" ? "샌드박스 준비 실패" : "시스템 오류",
                 stdout: result.stdout,
                 stderr: formatExecError(result),
             };

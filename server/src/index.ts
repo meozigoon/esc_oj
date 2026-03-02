@@ -47,7 +47,9 @@ const redisEvents = new IORedis(
     process.env.REDIS_URL ?? "redis://localhost:6379",
     { maxRetriesPerRequest: null },
 );
-const runQueueEvents = new QueueEvents(runQueueName, { connection: redisEvents });
+const runQueueEvents = new QueueEvents(runQueueName, {
+    connection: redisEvents,
+});
 const runQueueEventsReady = runQueueEvents.waitUntilReady();
 const dataDir = resolveDataDir(process.env.DATA_DIR);
 const isProd = process.env.NODE_ENV === "production";
@@ -117,7 +119,11 @@ app.use((req, res, next) => {
         next();
         return;
     }
-    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+    if (
+        req.method === "GET" ||
+        req.method === "HEAD" ||
+        req.method === "OPTIONS"
+    ) {
         next();
         return;
     }
@@ -575,8 +581,7 @@ async function enqueueJudgeSubmission(submissionId: number): Promise<void> {
             data: {
                 status: SubmissionStatus.SYSTEM_ERROR,
                 message: "채점 대기열 등록 실패",
-                detail:
-                    "채점 대기열 등록에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+                detail: "채점 대기열 등록에 실패했습니다. 잠시 후 다시 시도해 주세요.",
             },
         });
         throw error;
@@ -1522,8 +1527,7 @@ app.post(
             exceedsLimit(textAnswer, maxTextAnswerSize) ||
             (hasGeneratorCode &&
                 exceedsLimit(generatorCode, maxGeneratorCodeSize)) ||
-            (hasSolutionCode &&
-                exceedsLimit(solutionCode, maxSolutionCodeSize))
+            (hasSolutionCode && exceedsLimit(solutionCode, maxSolutionCodeSize))
         ) {
             res.status(400).json({ message: "입력값을 확인해 주세요." });
             return;
@@ -1685,8 +1689,7 @@ app.put(
             exceedsLimit(textAnswer, maxTextAnswerSize) ||
             (hasGeneratorCode &&
                 exceedsLimit(generatorCode, maxGeneratorCodeSize)) ||
-            (hasSolutionCode &&
-                exceedsLimit(solutionCode, maxSolutionCodeSize))
+            (hasSolutionCode && exceedsLimit(solutionCode, maxSolutionCodeSize))
         ) {
             res.status(400).json({ message: "입력값을 확인해 주세요." });
             return;
@@ -1903,7 +1906,9 @@ app.post(
             return;
         }
 
-        const testcaseCount = await prisma.testcase.count({ where: { problemId } });
+        const testcaseCount = await prisma.testcase.count({
+            where: { problemId },
+        });
         if (testcaseCount >= maxTestcaseCount) {
             res.status(400).json({
                 message: `테스트케이스는 최대 ${maxTestcaseCount}개까지 추가할 수 있습니다.`,
