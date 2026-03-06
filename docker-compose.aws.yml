@@ -1,31 +1,7 @@
 services:
-    postgres:
-        image: postgres:15
-        environment:
-            POSTGRES_USER: ${POSTGRES_USER:-oj}
-            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ojpass}
-            POSTGRES_DB: ${POSTGRES_DB:-oj}
-        ports:
-            - "${POSTGRES_BIND_IP:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
-        volumes:
-            - postgres_data:/var/lib/postgresql/data
-        healthcheck:
-            test:
-                ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-    redis:
-        image: redis:7-alpine
-        ports:
-            - "${REDIS_BIND_IP:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
-        healthcheck:
-            test: ["CMD", "redis-cli", "ping"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
     docker-proxy:
         image: tecnativa/docker-socket-proxy:0.3.0
+        restart: unless-stopped
         environment:
             CONTAINERS: 1
             IMAGES: 1
@@ -45,21 +21,26 @@ services:
             - no-new-privileges:true
         tmpfs:
             - /run
+
     server:
         build:
             context: .
             dockerfile: server/Dockerfile
+        image: oj-server:latest
+        restart: unless-stopped
         environment:
-            DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://oj:ojpass@postgres:5432/oj?schema=public}
-            REDIS_URL: ${DOCKER_REDIS_URL:-redis://redis:6379}
+            NODE_ENV: production
+            DATABASE_URL: ${DATABASE_URL}
+            REDIS_URL: ${REDIS_URL}
             JWT_SECRET: ${JWT_SECRET}
-            CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+            CORS_ORIGIN: ${CORS_ORIGIN}
             PORT: 3000
             DATA_DIR: /app/data
-            COOKIE_SECURE: ${COOKIE_SECURE:-false}
-            COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+            ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+            COOKIE_SECURE: ${COOKIE_SECURE:-true}
+            COOKIE_SAMESITE: ${COOKIE_SAMESITE:-none}
             COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
-            TRUST_PROXY: ${TRUST_PROXY:-false}
+            TRUST_PROXY: ${TRUST_PROXY:-true}
             JWT_SECRET_MIN_LENGTH: ${JWT_SECRET_MIN_LENGTH:-32}
             MAX_JSON_BODY_BYTES: ${MAX_JSON_BODY_BYTES:-2097152}
             MAX_CODE_SIZE: ${MAX_CODE_SIZE:-100000}
@@ -82,28 +63,26 @@ services:
             RUN_QUEUE_NAME: ${RUN_QUEUE_NAME:-run-queue}
             JUDGE_QUEUE_NAME: ${JUDGE_QUEUE_NAME:-submission-queue}
         ports:
-            - "3000:3000"
-        depends_on:
-            postgres:
-                condition: service_healthy
-            redis:
-                condition: service_healthy
+            - "${SERVER_BIND_IP:-127.0.0.1}:3000:3000"
+        volumes:
+            - ${DATA_DIR_HOST:-/srv/oj/data}:/app/data
         cap_drop:
             - ALL
         security_opt:
             - no-new-privileges:true
-        volumes:
-            - ./data:/app/data
+
     worker:
         build:
             context: .
             dockerfile: worker/Dockerfile
+        image: oj-worker:latest
+        restart: unless-stopped
         environment:
-            DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://oj:ojpass@postgres:5432/oj?schema=public}
-            REDIS_URL: ${DOCKER_REDIS_URL:-redis://redis:6379}
+            NODE_ENV: production
+            DATABASE_URL: ${DATABASE_URL}
+            REDIS_URL: ${REDIS_URL}
             JUDGE_IMAGE: ${JUDGE_IMAGE:-oj-runner:latest}
             JUDGE_IMAGE_ALLOWLIST: ${JUDGE_IMAGE_ALLOWLIST:-oj-runner:latest}
-            WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
             RUN_WORKER_CONCURRENCY: ${RUN_WORKER_CONCURRENCY:-2}
             JUDGE_WORKER_CONCURRENCY: ${JUDGE_WORKER_CONCURRENCY:-4}
             RUN_QUEUE_NAME: ${RUN_QUEUE_NAME:-run-queue}
@@ -118,19 +97,14 @@ services:
             SANDBOX_VOLUME_SIZE_MB: ${SANDBOX_VOLUME_SIZE_MB:-256}
             SANDBOX_MAX_FILE_BYTES: ${SANDBOX_MAX_FILE_BYTES:-16777216}
             SANDBOX_ALLOW_UNLIMITED_VOLUME_FALLBACK: ${SANDBOX_ALLOW_UNLIMITED_VOLUME_FALLBACK:-false}
+            SANDBOX_USE_TMPFS: ${SANDBOX_USE_TMPFS:-false}
             DOCKER_HOST: tcp://docker-proxy:2375
         depends_on:
-            postgres:
-                condition: service_healthy
-            redis:
-                condition: service_healthy
             docker-proxy:
                 condition: service_started
+        volumes:
+            - ${DATA_DIR_HOST:-/srv/oj/data}:/app/data
         cap_drop:
             - ALL
         security_opt:
             - no-new-privileges:true
-        volumes:
-            - ./data:/app/data
-volumes:
-    postgres_data:

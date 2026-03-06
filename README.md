@@ -50,6 +50,8 @@ Online Judge System for ESC, Computer Science Club of Hansung Science High Schoo
 추가 보안 설정(필요 시 `.env`에 추가):
 
 - `COOKIE_SECURE`: HTTPS 사용 시 `true`로 설정하세요. (프로덕션 기본값은 `true`)
+- `COOKIE_SAMESITE`: 인증 쿠키 SameSite 정책 (`lax`, `strict`, `none`)
+- `COOKIE_DOMAIN`: 인증 쿠키 도메인 (필요한 경우에만 설정)
 - `TRUST_PROXY`: 리버스 프록시 뒤에서 실행한다면 `true` 또는 홉 수를 설정하세요.
 - `JWT_SECRET_MIN_LENGTH`: 프로덕션 환경에서 JWT 비밀키 최소 길이 (기본 32)
 - `MAX_*`: 코드/입력/문제 본문/테스트케이스 길이 및 시간/메모리 상한 (자세한 항목은 `.env.example` 참고)
@@ -130,6 +132,24 @@ npm run dev
 
 </div>
 </details>
+
+## AWS 배포
+
+채점 워커가 Docker 컨테이너를 동적으로 실행하므로 AWS에서는 기본적으로 `EC2 + Docker Compose` 구성이 권장됩니다.
+
+- AWS 전용 Compose: `docker-compose.aws.yml`
+- AWS 전용 환경변수 예시: `.env.aws.example`
+- 배포 스크립트: `scripts/aws/deploy-ec2.sh`
+- 상세 절차: `docs/aws-deploy-ec2.md`
+
+## Vercel 프론트 배포
+
+프론트엔드는 Vercel에 배포하고 API는 AWS를 사용할 수 있습니다.
+
+1. Vercel 프로젝트를 레포 루트 기준으로 생성합니다. (`vercel.json` 포함)
+2. Vercel 환경변수에 `VITE_API_BASE=https://<AWS_API_DOMAIN>`을 설정합니다.
+3. AWS 서버의 `CORS_ORIGIN`에 Vercel 프론트 도메인을 설정합니다.
+4. 크로스 사이트 조합이라면 서버에 `COOKIE_SAMESITE=none`, `COOKIE_SECURE=true`를 사용합니다.
 
 ## 기본 계정 및 권한
 

@@ -4,7 +4,12 @@ import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import fs from "fs/promises";
 import path from "path";
-import express, { NextFunction, Request, Response } from "express";
+import express, {
+    CookieOptions,
+    NextFunction,
+    Request,
+    Response,
+} from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
@@ -78,6 +83,8 @@ const app = express();
 app.set("trust proxy", resolveTrustProxy());
 const jwtSecret = resolveJwtSecret();
 const cookieSecure = resolveCookieSecure();
+const cookieSameSite = resolveCookieSameSite();
+const cookieDomain = resolveCookieDomain();
 const corsOriginRaw = process.env.CORS_ORIGIN ?? "http://localhost:5173";
 const corsOrigins = new Set(
     corsOriginRaw
@@ -93,6 +100,12 @@ if (corsOrigins.has("*")) {
         'CORS_ORIGIN cannot include "*" when credentials are enabled.',
     );
 }
+const authCookieOptions: CookieOptions = {
+    httpOnly: true,
+    sameSite: cookieSameSite,
+    secure: cookieSecure,
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
+};
 
 app.disable("x-powered-by");
 app.use(
@@ -496,6 +509,39 @@ function resolveCookieSecure(): boolean {
     return raw.trim().toLowerCase() === "true";
 }
 
+function resolveCookieSameSite(): "lax" | "strict" | "none" {
+    const raw = process.env.COOKIE_SAMESITE;
+    if (!raw) {
+        return "lax";
+    }
+    const normalized = raw.trim().toLowerCase();
+    if (
+        normalized !== "lax" &&
+        normalized !== "strict" &&
+        normalized !== "none"
+    ) {
+        return "lax";
+    }
+    if (normalized === "none" && !cookieSecure) {
+        throw new Error(
+            "COOKIE_SAMESITE=none requires COOKIE_SECURE=true for browser compatibility.",
+        );
+    }
+    return normalized;
+}
+
+function resolveCookieDomain(): string | undefined {
+    const raw = process.env.COOKIE_DOMAIN;
+    if (!raw) {
+        return undefined;
+    }
+    const trimmed = raw.trim();
+    if (!trimmed) {
+        return undefined;
+    }
+    return trimmed;
+}
+
 function normalizeRole(role: Role) {
     if (role === "ADMIN") {
         return "admin";
@@ -620,11 +666,7 @@ app.post("/api/auth/login", loginLimiter, async (req: AuthRequest, res) => {
         username: user.username,
         role: user.role,
     });
-    res.cookie("oj_token", token, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: cookieSecure,
-    });
+    res.cookie("oj_token", token, authCookieOptions);
     res.json({
         user: {
             id: user.id,
@@ -635,11 +677,7 @@ app.post("/api/auth/login", loginLimiter, async (req: AuthRequest, res) => {
 });
 
 app.post("/api/auth/logout", (_req: AuthRequest, res) => {
-    res.clearCookie("oj_token", {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: cookieSecure,
-    });
+    res.clearCookie("oj_token", authCookieOptions);
     res.json({ ok: true });
 });
 

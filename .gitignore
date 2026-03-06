@@ -2,6 +2,7 @@ node_modules
 **/node_modules
 **/dist
 .env
+.env.aws
 coverage
 .DS_Store
 npm-debug.log*
